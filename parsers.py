@@ -174,15 +174,15 @@ def parse_ao(aofile):
                 found_source = True
 
             elif "component" in line and found_source:
-                if "point" in lines[i+1]:  # Only deal with point sources.
-                    found_component = True
-                    ra = lines[i+2].split()[1]
-                    dec = lines[i+2].split()[2].strip("\n")
-                    logging.debug("Found component at {}, {}".format(ra, dec))
-                    flux, freq = [], []
-                else:
-                    logging.warning("Only point sources are currently supported. ({})".format(name))
-                    break
+                # if "point" in lines[i+1]:  # Only deal with point sources.
+                found_component = True
+                ra = lines[i+2].split()[1]
+                dec = lines[i+2].split()[2].strip("\n")
+                logging.debug("Found component at {}, {}".format(ra, dec))
+                flux, freq = [], []
+                # else:
+                #     logging.warning("Only point sources are currently supported. ({})".format(name))
+                #     break
 
         
         if found_source:

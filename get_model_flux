@@ -3,7 +3,7 @@
 from __future__ import print_function
 from argparse import ArgumentParser
 
-from models.model_flux import total_flux
+from skymodel.model_flux import total_flux
 
 
 def main():
