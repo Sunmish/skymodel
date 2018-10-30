@@ -20,6 +20,7 @@ logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
 
 from .get_beam import beam_value
 from . import fitting
+from .parsers import parse_metafits
 
 
 FREQ_LIST = np.array([76., 84., 92., 99., 107., 115., 122., 130., 143.,
@@ -123,13 +124,7 @@ def create_model(catalogue, metafits, outname,  \
         logging.error("metafits file does not exist or not specified.")
         sys.exit(1)
 
-    with fits.open(metafits) as mfits:
-        t = Time(mfits[0].header["DATE-OBS"], format="isot", scale="utc")
-        delays = [int(d) for d in mfits[0].header["DELAYS"].split(",")]
-        freq = mfits[0].header["FREQCENT"]
-        ra_pnt = mfits[0].header["RA"]
-        dec_pnt = mfits[0].header["DEC"]
-
+    t, delays, freq, pnt = parse_metafits(metafits)
 
     GLEAM = fits.open(catalogue)[1].data
     logging.info("GLEAM sources: {0}".format(len(GLEAM)))
@@ -148,7 +143,7 @@ def create_model(catalogue, metafits, outname,  \
 
     coords = SkyCoord(ra=GLEAM["RAJ2000"], dec=GLEAM["DEJ2000"], 
                       unit=(u.deg, u.deg))
-    pcentre = SkyCoord(ra=ra_pnt, dec=dec_pnt, unit=(u.deg, u.deg))
+    pcentre = SkyCoord(ra=pnt[0], dec=pnt[1], unit=(u.deg, u.deg))
 
     seps = pcentre.separation(coords).value
 
