@@ -125,6 +125,7 @@ def create_model(catalogue, metafits, outname,  \
         sys.exit(1)
 
     t, delays, freq, pnt = parse_metafits(metafits)
+    freq /= 1.e6
 
     GLEAM = fits.open(catalogue)[1].data
     logging.info("GLEAM sources: {0}".format(len(GLEAM)))
