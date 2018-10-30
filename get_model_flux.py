@@ -1,58 +1,16 @@
-#!/usr/bin/env python
+#! /usr/bin/env python
 
-from __future__ import print_function
-
-import numpy as np
 from argparse import ArgumentParser
-
-# Use aocal parser from:
-from peel_suggester import parse_ao, parse_metafits
-
-
-def total_flux(aocal, freq, alpha=-0.7):
-	"""Get total flux from aocal file. 
-
-	Assume single source, and calculate the flux at a given frequency for each
-	 component before summing component fluxes.
-
-	Parameters
-	----------
-	aocal : str
-		Skymodel format 1.0/1.1 file with source parameters.
-	freq : float
-		Frequency in MHz at which to estimate flux density.
-	alpha : float, optional
-		Spectral index used if only one flux density measurement, assuming
-		a simple power law model.
-
-	Returns
-	float
-		Total flux density of all components/sources in `aocal at `freq`.
-
-	"""
-
-	sources = parse_ao(aocal)
-
-	tflux = 0
-	for source in sources:
-		# First calculate the flux density at the given frequency:
-		source.at_freq(freq=freq*1.e6,
-                   	   components=range(source.ncomponents),
-                       alpha=alpha)
-
-		sflux = 0
-		for c in source.components:
-			sflux += c.at_flux
-
-		tflux += sflux
-
-	return tflux
+import logging
+logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
+                    level=logging.INFO)
 
 
+def main():
 
-if __name__ == "__main__":
-
-	parser = ArgumentParser(description="Get total flux density from a skymodel.")
+	parser = ArgumentParser(description="Get total flux density from a skymodel, "
+										"optionally attenuating by the primary "
+										"beam response for a given observation.")
 	parser.add_argument("-a", "--aocal", "--aofile", dest="aocal", default=None, 
 						help="Skymodel format 1.0/1.1 file.")
 	parser.add_argument("-f", "--freq", dest="freq", default=None, 
@@ -63,28 +21,34 @@ if __name__ == "__main__":
 					    help="Spectral index used to estimate flux if only "
 					    "one flux density measurement available for a component.",
 					    type=float)
+	parser.add_argument("-A", "--attenuate", dest="atten", action="store_true", 
+						 help="Switch True if wanting to attenuate by the primary "
+						 	  "beam response. To do this, a metafits file must "
+						 	  "be specified.")
 
-	options = parser.parse_args()
+	args = parser.parse_args()
 
-	if options.aocal is None:
+	if args.aocal is None:
 		raise ValueError("Skymodel format 1.0/1.1 file required.")
-	elif (options.freq is None) and (options.metafits is None):
+	if (args.metafits is None) and (args.freq is None):
 		raise ValueError("Frequency information needed.")
-
-	if options.metafits is not None:
-		print("Getting frequency from metafits file: {}".format(options.metafits))
-		_, _, freq = parse_metafits(options.metafits)
-		freq /= 1.e6
-	else:
-		freq = options.freq
 
 	print("Estimating flux density at {} MHz".format(freq))
 
-	tflux = total_flux(aocal=options.aocal,
-					   freq=freq,
-					   alpha=options.alpha)
+	tflux = total_flux(aocal=args.aocal,
+					   freq=args.freq,
+					   alpha=args.alpha,
+					   metafits=args.metafits,
+					   attenuate=args.atten)
 
 	print("Total flux = {} Jy".format(tflux))
+
+
+
+if __name__ == "__main__":
+	main()
+
+	
 
 
 

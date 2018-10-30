@@ -17,10 +17,15 @@ logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
 
 
 # ---------------------------------------------------------------------------- #
+def from_index(x, x1, y1, index):
+    """Calculate flux from measured value and measured/assumed index."""
+    return y1*(x/x1)**index
+
+
 def two_point_index(x1, x2, y1, y2):
     """Calculate spectral index from two measurements."""
     return np.log10(y1/y2)/np.log10(x1/x2)
-    
+
 
 def powerlaw(x, a, b):
     """Simple powerlaw function."""
@@ -91,7 +96,7 @@ def cb_cpowerlaw(x, y, yerr, pcov, popt, conf=68.):
 
 
 # ---------------------------------------------------------------------------- #
-def fit(f, x, y, yerr, params=None, return_pcov=False):
+def fit(f, x, y, yerr=None, params=None, return_pcov=False):
     """Fit function `f` to data `x`, `y`, with absolute error `yerr`.
 
     An initial guess must be supplied if not using function defined here.
@@ -106,10 +111,13 @@ def fit(f, x, y, yerr, params=None, return_pcov=False):
         raise ValueError("`params` must be supplied if not using one of the "
                          "builtin models: `powerlaw` or `cpowerlaw.")
 
+    if yerr is not None:
+        yerr = np.asarray(yerr)
+
     popt, pcov = curve_fit(f, np.asarray(x), np.asarray(y), params,
                            absolute_sigma=True, 
                            method="lm", 
-                           sigma=np.asarray(yerr))
+                           sigma=yerr)
     perr = np.sqrt(np.diag(pcov))
 
     if return_pcov:
@@ -123,7 +131,7 @@ def plot(outname, f, x, y, yerr, popt, pcov=None):
 
     plt.close("all")
 
-    fig = plt.figure(figsuze=(8, 6))
+    fig = plt.figure(figsize=(8, 6))
     ax1 = plt.axes([0.1, 0.1*(6./8.), 0.85, 1.-0.15*(6./8.)])
 
     ax1.errorbar(x, y, yerr=yerr, xerr=None, fmt="o", ecolor="black", 

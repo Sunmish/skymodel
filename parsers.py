@@ -3,10 +3,16 @@
 import numpy as np
 
 from astropy.io import fits
+from astropy.time import Time
 from astropy.coordinates import SkyCoord
+from astropy import units as u
+
+import logging
+logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
+                    level=logging.INFO)
 
 from . import fitting
-from . import beam_value
+from .get_beam import beam_value
 
 
 class Component(object):
@@ -111,23 +117,24 @@ class Source(object):
                                                 x2=comp.freq[1],
                                                 y1=comp.flux[0],
                                                 y2=comp.flux[1])
-                flux_at_freq = from_index(x=freq,
-                                          x1=comp.freq[0], 
-                                          y1=comp.flux[0],
-                                          index=alpha)
+                flux_at_freq = fitting.from_index(x=freq,
+                                                  x1=comp.freq[0], 
+                                                  y1=comp.flux[0],
+                                                  index=index)
                 self.components[c].add_freq(flux=flux_at_freq, freq=freq)
                 continue
             else:
-                flux_at_freq = from_index(x=freq, 
-                                          x1=comp.freq[0], 
-                                          y1=comp.flux[0],
-                                          index=alpha)
+                flux_at_freq = fitting.from_index(x=freq, 
+                                                  x1=comp.freq[0], 
+                                                  y1=comp.flux[0],
+                                                  index=alpha)
                 self.components[c].add_freq(flux=flux_at_freq, freq=freq)
                 continue
 
-
-            popt, pcov = curve_fit(model, comp.freq, comp.flux, params, method="lm")
-            perr = np.sqrt(np.diag(pcov))
+            popt, perr = fitting.fit(f=model,
+                                     x=comp.freq,
+                                     y=comp.flux,
+                                     params=params)
             flux_at_freq = model(freq, *popt)
 
             self.components[c].add_freq(flux=flux_at_freq, freq=freq)

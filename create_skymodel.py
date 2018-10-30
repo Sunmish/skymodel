@@ -6,7 +6,6 @@
 import os
 import sys
 import numpy as np
-from argparse import ArgumentParser
 
 from astropy import wcs
 from astropy.io import fits
@@ -15,19 +14,12 @@ from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from astropy import units as u
 from astropy.time import Time
 
-import matplotlib as mpl
-mpl.use("Agg")
-import matplotlib.pyplot as plt
-
-from scipy.optimize import curve_fit
-from scipy.stats import linregress, t
-
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
                     level=logging.INFO)
 
-from models.get_beam import beam_value
-from models import fitting
+from .get_beam import beam_value
+from . import fitting
 
 
 FREQ_LIST = np.array([76., 84., 92., 99., 107., 115., 122., 130., 143.,
@@ -72,7 +64,7 @@ def get_exclusion_coords(skymodel):
 
     era, edec = [], []
     for s in skymodel:
-        with open(skymodel, "r") as f:
+        with open(s, "r") as f:
             lines = f.readlines()
             for line in lines:
                 if "position" in line:
@@ -142,7 +134,7 @@ def create_model(catalogue, metafits, outname,  \
     GLEAM = fits.open(catalogue)[1].data
     logging.info("GLEAM sources: {0}".format(len(GLEAM)))
     # Initial flux cut:
-    GLEAM = GLEAM[np.where(GLEAM["Fpwide"] > threshold)[0]]
+    GLEAM = GLEAM[GLEAM["Fpwide"] > threshold]
     logging.info("GLEAM sources after flux density cut: {0}".format(
                  len(GLEAM)))
     # Cut out extended sources:
@@ -213,14 +205,14 @@ def create_model(catalogue, metafits, outname,  \
                                          x=tmp_freq,
                                          y=tmp_flux,
                                          yerr=tmp_eflux,
-                                         params=[-0.7, 1],
+                                         params=[-0.7, 1., 1.],
                                          return_pcov=True)
                 perr = np.sqrt(np.diag(pcov))
 
                 if np.isnan(pcov[0, 0]):
                     logging.debug("pcov[0, 0] is nan for {0}".format(i))
                     raise RuntimeError
-                elif perr[0]/popt[0] > 0.25:  # Poor fit?
+                elif perr[0]/popt[0] > 0.5:  # Poor fit?
                     logging.debug("perr is too high for {0}".format(i))
                     raise RuntimeError
 
@@ -230,7 +222,7 @@ def create_model(catalogue, metafits, outname,  \
 
             else:
 
-                predicted_flux = cpowerlaw(float(freq), *popt)
+                predicted_flux = fitting.cpowerlaw(float(freq), *popt)
                 GLEAM["Fintwide"][i] = predicted_flux  
                 GLEAM["Fpwide"][i] = predicted_flux
 
@@ -257,21 +249,20 @@ def create_model(catalogue, metafits, outname,  \
             logging.debug("Too few points for {0}".format(i))
             GLEAM["Fintwide"][i] = 0.
 
-    GLEAM = GLEAM[np.where(GLEAM["Fintwide"] > 0.)[0]]
+    GLEAM = GLEAM[GLEAM["Fintwide"] > 0.]
     logging.info("GLEAM sources after modelling: {0}".format(len(GLEAM)))
 
     stokesI = beam_value(GLEAM["RAJ2000"], GLEAM["DEJ2000"], t, delays,
-                        freq*1.e6, return_I=True)
+                         freq*1.e6, return_I=True)
 
     GLEAM["Fpwide"] *= stokesI
-    GLEAM = np.delete(GLEAM, np.where(np.isnan(GLEAM["Fpwide"]))[0])
-    GLEAM = GLEAM[np.where(GLEAM["Fpwide"] > threshold)]
+    GLEAM = GLEAM[np.isfinite(GLEAM["Fpwide"])]
+
+    # The final threshold ensure sources at the given frequency are above
+    # the user-specified threshold too.
+    GLEAM = GLEAM[GLEAM["Fpwide"] > threshold]
     
 
-    # # For some reason a whole bunch of nans creep in. 
-    # GLEAM = np.delete(GLEAM, np.where(np.isnan(GLEAM["Fpwide"]))[0])
-
-    # GLEAM = GLEAM[np.where(GLEAM["Fintwide"] > 0.)[0]]
     logging.info("GLEAM sources after applying PB: {0}".format(len(GLEAM)))
 
 
@@ -319,71 +310,3 @@ def create_model(catalogue, metafits, outname,  \
                                                        GLEAM["Fintwide"][i]))
 
         
-
-
-
-
-
-def main():
-
-    parser = ArgumentParser(description="Create sky model from GLEAM.")
-
-    parser.add_argument("-g", "--catalogue", "--gleam", dest="catalogue", 
-                        default=None, help="Input GLEAM catalogue location.")
-    parser.add_argument("-m", "--metafits", dest="metafits", default=None,
-                        help="Name/location of metafits file for observation.")
-    parser.add_argument("-o", "--outname", dest="outname", default=None,
-                        help="Output skymodel name.")
-    # Extra options:
-    parser.add_argument("-t", "--threshold", dest="threshold", default=1., type=float, 
-                        help="Threshold below which to cut sources [1 Jy].")
-    parser.add_argument("-r", "--radius", dest="radius", default=120., type=float, 
-                        help="Radius within which to select sources [120 deg].")
-    parser.add_argument("-R", "--ratio", dest="ratio", default=1.2, type=float, 
-                        help="Ratio of source size to beam shape to determine "
-                           "if point source [1.1].")
-    parser.add_argument("-n", "--nmax", dest="nmax", default=500, type=int, 
-                        help="Max number of sources to return. The threshold is "
-                        "recalculated if more sources than nmax are found above it.")
-    parser.add_argument("--plot", action="store_true")
-    parser.add_argument("-x", "--exclude_model", dest="exclude", default=None,
-                        help="Skymodel v1.1 format file with existing models. These"
-                             " will be create an exclusion zones of 10 arcmin around these"
-                             " sources.", nargs="*")
-    # parser.add_argument("-w", "--weight", action="store_true", help="Weight apparent"
-    #                     " fluxes by distance from pointing centre to try and "
-    #                     "include more mainlobe sources than sidelobe source "
-    #                     "(especially at higher frequencies).")
-
-    options = parser.parse_args()
-
-    if options.catalogue is None:
-        logging.error("GLEAM catalogue not supplied.")
-        sys.exit(1)
-    elif options.metafits is None:
-        logging.error("Metafits file not supplied.")
-        sys.exit(1)
-
-    if options.outname is None:
-        options.outname = options.metafits.replace(".metafits", "_skymodel.txt")
-
-    if options.exclude is not None:
-        exclusion_coords = get_exclusion_coords(options.exclude)
-    else:
-        exclusion_coords = None
-    
-    create_model(catalogue=options.catalogue,
-                 metafits=options.metafits, 
-                 outname=options.outname,  
-                 threshold=options.threshold, 
-                 ratio=options.ratio, 
-                 radius=options.radius, 
-                 nmax=options.nmax, 
-                 plot=options.plot, 
-                 exclude_coords=exclusion_coords, 
-                 exclusion_zone=10.)
-
-
-
-if __name__ == "__main__":
-    main()

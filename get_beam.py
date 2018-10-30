@@ -2,9 +2,10 @@
 
 from __future__ import print_function
 
+import numpy as np
+
 # Astopy imports:
 from astropy.io import fits
-from astropy.wcs import WCS
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from astropy import units as u
@@ -80,8 +81,36 @@ def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False):
                               pixels_per_deg=10)
 
     if return_I:
-        return 0.5*(rx[0] + rY[0])
+        return 0.5*(rX[0] + rY[0])
     else:
         return rX[0], rY[0]
 
 
+def atten_source(source, t, delays, freq, alpha=-0.7):
+    """Attenuate a source by the primary beam response.
+
+    Attenuate each component at the given frequency, then sum the components
+    to determine total apparent brightness.
+    """
+
+
+    ra = np.array([source.components[i].radec.ra.value for i in range(source.ncomponents)])
+    dec = np.array([source.components[i].radec.dec.value for i in range(source.ncomponents)])
+
+    XX, YY = beam_value(ra=ra,
+                        dec=dec,
+                        t=t,
+                        delays=delays,
+                        freq=freq)
+
+    source.at_freq(freq=freq,
+                   components=range(source.ncomponents),
+                   alpha=alpha)
+
+    pseudoI = 0.5*(XX + YY)
+    atten_flux = np.array([source.components[i].at_flux*pseudoI[i] for i in
+                           range(source.ncomponents)])
+
+    total_atten_flux = np.nansum(atten_flux)
+
+    return total_atten_flux
