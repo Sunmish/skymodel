@@ -1,0 +1,69 @@
+#! /usr/bin/env python
+
+from argparse import ArgumentParser
+from skymodel.create_skymodel import create_model, get_exclusion_coords
+
+
+def main():
+
+    parser = ArgumentParser(description="Create sky model from GLEAM.")
+
+    parser.add_argument("-g", "--catalogue", "--gleam", dest="catalogue", 
+                        default=None, help="Input GLEAM catalogue location.")
+    parser.add_argument("-m", "--metafits", dest="metafits", default=None,
+                        help="Name/location of metafits file for observation.")
+    parser.add_argument("-o", "--outname", dest="outname", default=None,
+                        help="Output skymodel name.")
+    # Extra options:
+    parser.add_argument("-t", "--threshold", dest="threshold", default=1., type=float, 
+                        help="Threshold below which to cut sources [1 Jy].")
+    parser.add_argument("-r", "--radius", dest="radius", default=120., type=float, 
+                        help="Radius within which to select sources [120 deg].")
+    parser.add_argument("-R", "--ratio", dest="ratio", default=1.2, type=float, 
+                        help="Ratio of source size to beam shape to determine "
+                           "if point source [1.1].")
+    parser.add_argument("-n", "--nmax", dest="nmax", default=500, type=int, 
+                        help="Max number of sources to return. The threshold is "
+                        "recalculated if more sources than nmax are found above it.")
+    parser.add_argument("--plot", action="store_true")
+    parser.add_argument("-x", "--exclude_model", dest="exclude", default=None,
+                        help="Skymodel v1.1 format file with existing models. These"
+                             " will be create an exclusion zones of 10 arcmin around these"
+                             " sources.", nargs="*")
+    # parser.add_argument("-w", "--weight", action="store_true", help="Weight apparent"
+    #                     " fluxes by distance from pointing centre to try and "
+    #                     "include more mainlobe sources than sidelobe source "
+    #                     "(especially at higher frequencies).")
+
+    options = parser.parse_args()
+
+    if options.catalogue is None:
+        logging.error("GLEAM catalogue not supplied.")
+        sys.exit(1)
+    elif options.metafits is None:
+        logging.error("Metafits file not supplied.")
+        sys.exit(1)
+
+    if options.outname is None:
+        options.outname = options.metafits.replace(".metafits", "_skymodel.txt")
+
+    if options.exclude is not None:
+        exclusion_coords = get_exclusion_coords(options.exclude)
+    else:
+        exclusion_coords = None
+    
+    create_model(catalogue=options.catalogue,
+                 metafits=options.metafits, 
+                 outname=options.outname,  
+                 threshold=options.threshold, 
+                 ratio=options.ratio, 
+                 radius=options.radius, 
+                 nmax=options.nmax, 
+                 plot=options.plot, 
+                 exclude_coords=exclusion_coords, 
+                 exclusion_zone=10.)
+
+
+
+if __name__ == "__main__":
+    main()
