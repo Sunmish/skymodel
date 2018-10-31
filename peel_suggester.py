@@ -58,7 +58,7 @@ def slice_ao(source, aofile):
     return outname
 
 
-def autoprocess(aofile, metafits, threshold=25., alpha=-0.7, verbose=False,
+def autoprocess(aofile, metafits, threshold=25., radius=0., alpha=-0.7, verbose=False,
                 duplicates=True):
     """Attenuate models in an `aofile`.
 
@@ -88,7 +88,7 @@ def autoprocess(aofile, metafits, threshold=25., alpha=-0.7, verbose=False,
 
     """
 
-    t, delays, freq, _ = parse_metafits(metafits)
+    t, delays, freq, pnt = parse_metafits(metafits)
 
     writeout = ""
 
@@ -105,11 +105,12 @@ def autoprocess(aofile, metafits, threshold=25., alpha=-0.7, verbose=False,
                                                    delays=delays,
                                                    freq=freq,
                                                    alpha=-0.7)
+                sep = pnt.separation(source.components[0].radec).value
 
                 writeout += "{:<22}: {:.2f} Jy\n".format(source.name, 
                                                          apparent_brightness)
                 
-                if apparent_brightness > threshold:
+                if (apparent_brightness > threshold) and (sep.value > radius):
                     # Slice out model to use in peeling later:
                     model_name = slice_ao(source, ao)
                     names.append(source.name)

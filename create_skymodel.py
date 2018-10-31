@@ -144,9 +144,8 @@ def create_model(catalogue, metafits, outname,  \
 
     coords = SkyCoord(ra=GLEAM["RAJ2000"], dec=GLEAM["DEJ2000"], 
                       unit=(u.deg, u.deg))
-    pcentre = SkyCoord(ra=pnt[0], dec=pnt[1], unit=(u.deg, u.deg))
 
-    seps = pcentre.separation(coords).value
+    seps = pnt.separation(coords).value
 
     # Cut out sources outside of radius:
     GLEAM = GLEAM[np.where(seps < radius)[0]]

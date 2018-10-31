@@ -10,7 +10,7 @@ def main():
     ps.add_argument("-d", "--dir", dest="dir", default="./")
     ps.add_argument("-m", "--metafits", dest="metafits", default=None, 
                         help="MWA metafits file to read frequency from.")
-    ps.add_argument("-t", "--threshold", dest="threshold", default=2.)
+    ps.add_argument("-t", "--threshold", dest="threshold", default=2., type=float)
     ps.add_argument("-o", "--outname", dest="outname", default="all_models.txt")
 
     args = ps.parse_args()
