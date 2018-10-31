@@ -12,6 +12,7 @@ def main():
                         help="MWA metafits file to read frequency from.")
     ps.add_argument("-t", "--threshold", dest="threshold", default=2., type=float)
     ps.add_argument("-o", "--outname", dest="outname", default="all_models.txt")
+    ps.add_argument("-p", "--prefix", dest="prefix", default="model")
 
     args = ps.parse_args()
 
@@ -21,8 +22,8 @@ def main():
     prep_model(indir=args.dir,
                metafits=args.metafits,
                threshold=args.threshold,
-               outname=args.outname)
-
+               outname=args.outname, 
+               prefix=args.prefix)
 
 if __name__ == "__main__":
     main()

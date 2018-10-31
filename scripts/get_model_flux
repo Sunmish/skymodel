@@ -39,7 +39,7 @@ def main():
 					   metafits=args.metafits,
 					   attenuate=args.atten)
 
-	print("Total flux = {} Jy".format(tflux))
+	print("{}".format(tflux))
 
 
 

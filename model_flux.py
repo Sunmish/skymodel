@@ -68,7 +68,8 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False):
     return tflux
 
 
-def prep_model(indir, metafits, threshold, outname="./all_models.txt"):
+def prep_model(indir, metafits, threshold, outname="./all_models.txt",
+               prefix="model"):
     """Prepare a combined AO-style model, using models in a directory.
 
     Parameters
@@ -93,7 +94,7 @@ def prep_model(indir, metafits, threshold, outname="./all_models.txt"):
     total_fluxes = ""
 
     for spec in files:
-        if spec.endswith(".txt") and spec.startswith("model-"):
+        if spec.endswith(".txt") and spec.startswith(prefix):
 
             tflux = total_flux(indir+"/"+spec, 
                                attenuate=True, 

@@ -29,7 +29,7 @@ def slice_ao(source, aofile):
 
     """
 
-    outname = source.name.split()[0]+".model"
+    outname = "peel-"+source.name.split()[0]+".txt"  # consistent with prep_model
 
     f = open(aofile, "r")
     with open(outname, "w+") as g:
@@ -37,21 +37,31 @@ def slice_ao(source, aofile):
         lines = f.readlines()
 
         found_source = False
+        found_other_source = False
         for i, line in enumerate(lines):
-            
+
             if i+1 < len(lines):
                 if len(line.split()) == 0:  # Tidy up white space lines.
                     continue
                 elif "source" in line and source.name in lines[i+1]:
+                    if found_other_source:
+                        h.flush()
+                        h.close()
+                        found_other_source = False
                     found_source = True
                 elif "source" in line:
                     found_source = False
+                    
+                    found_other_source = True
+
+                    other_outname = "model-"+lines[i+1].split()[1].replace("\"", "")+".txt"
+                    h = open(other_outname, "w+")
+                    h.write("skymodel fileformat 1.1\n")
 
                 if found_source:
                     g.write(line)
-
-            if i == len(lines)-1:
-                g.write(r"}")
+                elif found_other_source:
+                    h.write(line)
 
     f.close()
 
@@ -105,12 +115,13 @@ def autoprocess(aofile, metafits, threshold=25., radius=0., alpha=-0.7, verbose=
                                                    delays=delays,
                                                    freq=freq,
                                                    alpha=-0.7)
+
                 sep = pnt.separation(source.components[0].radec).value
 
                 writeout += "{:<22}: {:.2f} Jy\n".format(source.name, 
                                                          apparent_brightness)
                 
-                if (apparent_brightness > threshold) and (sep.value > radius):
+                if (apparent_brightness > threshold) and (sep > radius):
                     # Slice out model to use in peeling later:
                     model_name = slice_ao(source, ao)
                     names.append(source.name)

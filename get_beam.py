@@ -10,10 +10,14 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from astropy import units as u
 
+import logging
+
 # MWA beam-related imports:
 from mwapy import ephem_utils
 from mwapy.pb.primary_beam import MWA_Tile_full_EE
 
+# # Too much unnecessary output...?
+# logging.getLogger("beam_full_EE").setLevel(logging.WARNING)
 
 MWA = EarthLocation.from_geodetic(lat=-26.703319*u.deg, 
                                   lon=116.67081*u.deg, 

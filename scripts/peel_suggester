@@ -13,9 +13,11 @@ def main():
 
     help_ = {"f": "A skymodel format 1.0/1.1 file with a list of models.",
              "m": "MWA metafits file.",
-             "t": "Threshold in Jy above which to suggest peeling. [Default 25]",
+             "t": "Threshold in Jy above which to suggest peeling. [Default 25 Jy]",
              "alpha": "Spectral index to assume if components/sources do not "
                       "have more than 1 flux density measurement. [Default -0.7]",
+             "r": "For sources to be suggested to be peeled, they must lie outside "
+                  "of this radius. [Default 0.0 deg]"
             }
 
     ps.add_argument("-f", "--aofile", "--models", "--skymodel", type=str,
@@ -23,6 +25,7 @@ def main():
     ps.add_argument("-m", "--metafits", type=str, help=help_["m"], default=None)
     ps.add_argument("-t", "--threshold", type=float, help=help_["t"], 
                     default=25.)
+    ps.add_argument("-r", "--radius", type=float, help=help_["r"], default=0.)
     ps.add_argument("-a", "--alpha", "--spectral_index", dest="alpha",
                     help=help_["alpha"], default=-0.7, type=float)
     ps.add_argument("-v", "--verbose", action="store_true")
@@ -38,14 +41,16 @@ def main():
     peel_sources = autoprocess(aofile=args.aofile, 
                                metafits=args.metafits, 
                                threshold=args.threshold, 
+                               radius=args.radius, 
                                alpha=args.alpha,
                                verbose=args.verbose,
                                duplicates=args.duplicates)
 
     if peel_sources is not None:
-        for source in peel_sources:
-            if not args.verbose:
-                print("{} {} {}".format(source[1], source[2], source[0]))
+        for i in range(len(peel_sources)):
+            print("{} {} {}".format(peel_sources[:, 1][i], 
+                                    peel_sources[:, 2][i], 
+                                    peel_sources[:, 0][i]))
 
 
 if __name__ == "__main__":
