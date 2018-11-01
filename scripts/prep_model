@@ -7,7 +7,8 @@ from skymodel.model_flux import prep_model
 def main():
 
     ps = ArgumentParser()
-    ps.add_argument("-d", "--dir", dest="dir", default="./")
+    ps.add_argument("-d", "--dir", dest="dir", default=None)
+    ps.add_argument("-i", "--input", dest="input", nargs="*")
     ps.add_argument("-m", "--metafits", dest="metafits", default=None, 
                         help="MWA metafits file to read frequency from.")
     ps.add_argument("-t", "--threshold", dest="threshold", default=2., type=float)
@@ -19,7 +20,13 @@ def main():
     if (args.metafits is None):
         raise ValueError("A metafits file must be supplied.")
 
-    prep_model(indir=args.dir,
+    if args.dir is not None:
+        inp = args.dir
+    else:
+        inp = args.input
+
+
+    prep_model(inp=inp,
                metafits=args.metafits,
                threshold=args.threshold,
                outname=args.outname, 

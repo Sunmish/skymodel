@@ -40,7 +40,7 @@ def upowerlaw(x, a, b, ea, eb):
     return df
 
 
-def cpowerlaw(x, a, b,c):
+def cpowerlaw(x, a, b, c):
     """Simple curved powerlaw function."""
     return (x**a * np.exp(b*np.log(x)**2 + c))
 

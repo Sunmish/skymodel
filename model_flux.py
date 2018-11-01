@@ -60,7 +60,7 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False):
                                  delays=delays,
                                  freq=at_freq)
         else:
-            sflux = np.nansum(np.array([source.components[i].at_flux*pseudoI[i] 
+            sflux = np.nansum(np.array([source.components[i].at_flux 
                                         for i in range(source.ncomponents)]))
 
         tflux += sflux
@@ -68,15 +68,16 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False):
     return tflux
 
 
-def prep_model(indir, metafits, threshold, outname="./all_models.txt",
+def prep_model(inp, metafits, threshold, outname="./all_models.txt",
                prefix="model"):
     """Prepare a combined AO-style model, using models in a directory.
 
     Parameters
     ----------
-    indir : str
+    input : str
         Directory containing AO-style model files. Must begin with 'model' and 
         end with '.txt'. 
+        Alternatively, a list of filenames.
     metafits : str
         Filepath to a metafits file for a particular observation. This is used
         to attenuate the brightness by the primary beam response.
@@ -88,38 +89,45 @@ def prep_model(indir, metafits, threshold, outname="./all_models.txt",
     all_models = open(outname, "w+")
     all_models.write("skymodel fileformat 1.1\n")
 
-    files = os.listdir(indir)
+    if isinstance(inp, (list, np.ndarray)):
+        files = inp
+    elif os.path.isdir(inp):
+        files = [inp+"/"+f for f in os.listdir(inp) 
+                 if (f.endswith(".txt") and f.startswith(prefix))]
+    elif not isinstance(inp, (list, np.ndarray)):
+        files = [inp]
+    else:
+        raise ValueError("Unable to parse `inp`: {}".format(inp))
 
     files_to_use = ""
     total_fluxes = ""
 
     for spec in files:
-        if spec.endswith(".txt") and spec.startswith(prefix):
 
-            tflux = total_flux(indir+"/"+spec, 
-                               attenuate=True, 
-                               metafits=metafits)
-            
-            if tflux > threshold:
+        tflux = total_flux(spec, 
+                           attenuate=True, 
+                           metafits=metafits)
+        
+        if tflux > threshold:
 
-                with open(indir+"/"+spec, "r+") as f:
-                    lines = f.readlines()
-                    for line in lines:
-                        if "skymodel" in line:
-                            pass
-                        elif "source" in line:
-                            all_models.write("\n"+line.lstrip())
-                        elif "fluxdensity" in line:
-                            all_models.write("fluxdensity Jy {} 0 0 0\n".format(
-                                line.split()[2]))
-                        else:
-                            all_models.write(line.lstrip())
+            with open(spec, "r+") as f:
+                lines = f.readlines()
+                for line in lines:
+                    if "skymodel" in line:
+                        pass
+                    elif "source" in line:
+                        all_models.write("\n"+line.lstrip())
+                    elif "fluxdensity" in line:
+                        all_models.write("fluxdensity Jy {} 0 0 0\n".format(
+                            line.split()[2]))
+                    else:
+                        all_models.write(line.lstrip())
 
-                files_to_use += "{}\n".format(spec)
+            files_to_use += "{}\n".format(spec)
 
-            total_fluxes += "{}\n".format(tflux)
+        total_fluxes += "{}\n".format(tflux)
 
-            print("{}: {}".format(spec, tflux))
+        print("{}: {}".format(spec, tflux))
 
     print(files_to_use)
     print(total_fluxes)
