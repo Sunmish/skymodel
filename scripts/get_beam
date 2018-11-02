@@ -1,0 +1,30 @@
+#! /usr/bin/env python
+
+from __future__ import print_function
+
+from argparse import ArgumentParser
+
+from skymodel.get_beam import beam_value
+from skymodel.parsers import parse_metafits
+
+
+def main():
+
+    ps = ArgumentParser(description="Get the pseudo-Stokes I beam at a given "
+                                    "RA and decl. for a given observation.")
+
+    ps.add_argument("ra", type=float)
+    ps.add_argument("dec", type=float)
+    ps.add_argument("metafits", type=str, help="The metafits file.")
+
+    args = ps.parse_args()
+
+    t, delays, freq, pnt = parse_metafits(args.metafits)
+
+    stokesI = beam_value(args.ra, args.dec, t, delays, freq, return_I=True)
+
+    print(stokesI)
+
+
+if __name__ == "__main__":
+    main()
