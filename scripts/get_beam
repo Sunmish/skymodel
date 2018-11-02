@@ -23,7 +23,7 @@ def main():
 
     stokesI = beam_value(args.ra, args.dec, t, delays, freq, return_I=True)
 
-    print(stokesI)
+    print(stokesI[0])
 
 
 if __name__ == "__main__":
