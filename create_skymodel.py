@@ -130,7 +130,12 @@ def create_model(catalogue, metafits, outname,  \
     GLEAM = fits.open(catalogue)[1].data
     logging.info("GLEAM sources: {0}".format(len(GLEAM)))
     # Initial flux cut:
-    GLEAM = GLEAM[GLEAM["Fpwide"] > threshold]
+    # First get closest subband to make flux cut on:
+    fidx = (np.abs(FREQ_LIST - freq)).argmin()
+    at_freq = FREQ_LIST_STR[fidx]
+
+
+    GLEAM = GLEAM[GLEAM["Fp"+at_freq] > threshold]
     logging.info("GLEAM sources after flux density cut: {0}".format(
                  len(GLEAM)))
     # Cut out extended sources:

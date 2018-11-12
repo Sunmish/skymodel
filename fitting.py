@@ -108,8 +108,8 @@ def fit(f, x, y, yerr=None, params=None, return_pcov=False):
     elif f == cpowerlaw and params is None:
         params = [-0.7, 1., 1.]
     elif params is None:
-        raise ValueError("`params` must be supplied if not using one of the "
-                         "builtin models: `powerlaw` or `cpowerlaw.")
+            raise ValueError("`params` must be supplied if not using one of the "
+                             "builtin models: `powerlaw` or `cpowerlaw.")
 
     if yerr is not None:
         yerr = np.asarray(yerr)

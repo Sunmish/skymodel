@@ -9,6 +9,7 @@ from astropy.io import fits
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from astropy import units as u
+from astropy.wcs import WCS
 
 import logging
 
@@ -118,3 +119,40 @@ def atten_source(source, t, delays, freq, alpha=-0.7):
     total_atten_flux = np.nansum(atten_flux)
 
     return total_atten_flux
+
+
+def make_beam_image(t, delays, freq, outname, cmap="cubehelix", stretch="sqrt", 
+                    npix=1500, ra=75., dec=-26., plot=False):
+    """
+    """
+
+    # Initialise a FITS image:
+    hdu = fits.PrimaryHDU()
+    arr = np.full((npix, npix), 0.)
+    hdu.data = arr
+
+    hdu.header["CTYPE1"] = "RA---SIN"
+    hdu.header["CTYPE2"] = "DEC--SIN"
+    hdu.header["CRVAL1"] = ra
+    hdu.header["CRVAL2"] = dec
+    hdu.header["CDELT1"] = -npix*(0.08/1500.)
+    hdu.header["CDELT2"] = npix*(0.08/1500.)
+    hdu.header["CRPIX1"] = npix//2 - 1
+    hdu.header["CRPIX2"] = npix//2 - 1
+
+    w = WCS(hdu.header)
+
+    # Now get beam values for each pixel:
+    indices = np.indices((arr.shape))
+    x = indices[0].flatten()
+    y = indices[1].flatten()
+
+    r, d = w.all_pix2world(x, y, 0)
+
+    hdu.data[y, x] = beam_value(r, d, t, delays, freq, return_I=True)
+
+    # if plot:
+        
+
+    hdu.writeto(outname, clobber=True)
+

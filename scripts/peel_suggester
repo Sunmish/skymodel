@@ -48,9 +48,11 @@ def main():
 
     if peel_sources is not None:
         for i in range(len(peel_sources)):
-            print("{} {} {}".format(peel_sources[:, 1][i], 
-                                    peel_sources[:, 2][i], 
-                                    peel_sources[:, 0][i]))
+            print("{} {} {} {} {}".format(peel_sources[:, 1][i], 
+                                          peel_sources[:, 2][i], 
+                                          peel_sources[:, 0][i],
+                                          peel_sources[:, 3][i],
+                                          peel_sources[:, 4][i]))
 
 
 if __name__ == "__main__":

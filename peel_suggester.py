@@ -103,7 +103,7 @@ def autoprocess(aofile, metafits, threshold=25., radius=0., alpha=-0.7, verbose=
     writeout = ""
 
     i = 0
-    names, models, abrights = [], [], []
+    names, models, abrights, ra, dec = [], [], [], [], []
 
     for ao in aofile:
         sources = parse_ao(ao)
@@ -127,6 +127,8 @@ def autoprocess(aofile, metafits, threshold=25., radius=0., alpha=-0.7, verbose=
                     names.append(source.name)
                     models.append(model_name)
                     abrights.append(apparent_brightness)
+                    ra.append(source.components[0].radec.ra.value)
+                    dec.append(source.components[0].radec.dec.value)
             else:
                 logging.warn("{} ingnored as it has already been added".format(source.name))
 
@@ -137,7 +139,9 @@ def autoprocess(aofile, metafits, threshold=25., radius=0., alpha=-0.7, verbose=
     try:
         peel = np.array([np.asarray(abrights),
                          np.asarray(names),
-                         np.asarray(models)]).T
+                         np.asarray(models),
+                         np.asarray(ra),
+                         np.asarray(dec)]).T
         peel = peel[peel[:, 0].astype("f").argsort()[::-1]]  # brightest first
     except Exception:
         return None

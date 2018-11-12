@@ -69,7 +69,7 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False):
 
 
 def prep_model(inp, metafits, threshold, outname="./all_models.txt",
-               prefix="model"):
+               prefix="model", exclude=None):
     """Prepare a combined AO-style model, using models in a directory.
 
     Parameters
@@ -85,6 +85,8 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
         The threshold above which to add a model to the combined model file.
 
     """
+
+        
 
     all_models = open(outname, "w+")
     all_models.write("skymodel fileformat 1.1\n")
@@ -102,7 +104,12 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
     files_to_use = ""
     total_fluxes = ""
 
+
     for spec in files:
+
+        if exclude is not None:
+            if np.asarray([x in spec for x in exclude]).any():
+                continue
 
         tflux = total_flux(spec, 
                            attenuate=True, 
