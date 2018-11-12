@@ -5,6 +5,7 @@ import argparse
 from skymodel import get_beam, parsers
 
 
+# TODO plotting
 
 def main():
 
@@ -25,10 +26,13 @@ def main():
         args.outname = args.metafits.replace(".metafits", "_beamI.fits")
 
 
-    t, delays, freq, _ = parsers.parse_metafits(args.metafits)
+    t, delays, freq, pnt = parsers.parse_metafits(args.metafits)
 
-    get_beam.make_beam_image(t, delays, freq, args.outname,
-                             cmap=args.cmap, plot=args.plot)
+    get_beam.make_beam_image(t, delays, freq, 
+                             ra=pnt.ra.value,
+                             outname=args.outname,
+                             cmap=args.cmap, 
+                             plot=args.plot)
 
     
 

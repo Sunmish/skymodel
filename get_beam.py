@@ -125,8 +125,8 @@ def atten_source(source, t, delays, freq, alpha=-0.7):
 
 
 
-def make_beam_image(t, delays, freq, outname=None, cmap="cubehelix", stretch="sqrt", 
-                    npix=1500, ra=75., dec=-26., plot=False, return_hdu=False):
+def make_beam_image(t, delays, freq, ra, outname=None, cmap="cubehelix", stretch="sqrt", 
+                    npix=1500, dec=-26., plot=False, return_hdu=False):
     """Make a FITS image of the psuedo-I beam response.
 
     Parameters
@@ -137,14 +137,14 @@ def make_beam_image(t, delays, freq, outname=None, cmap="cubehelix", stretch="sq
         List of delays. From `parse_metafits` in `skymodel.parsers`.
     freq : float
         Frequency in Hz. From `parse_metafits` in `skymodel.parsers`.
+    ra : float
+        RA for center of the image. No default as this is obs-dependent. 
     outname : str
         Output file name for the beam FITS image.
     cmap : str, optional
         Colormap to use if plotting. [Default cubehelix]
     npix : int, optional
         Size of the beam image. This changes the pixel dimensions. [Default 1500]
-    ra : float, optional
-        RA for center of the image. [Default 75 (05:00:00)]
     dec : float, optional
         Dec. for center of the image. [Default -26]
     plot : bool, optional
