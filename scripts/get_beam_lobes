@@ -1,0 +1,51 @@
+#! /usr/bin/env python
+
+import argparse
+
+from astropy.io import fits
+from skymodel import get_beam, parsers
+
+
+def main():
+
+    description = """
+    Find the location and approximate size of the lobes of the MWA primary 
+    beam. Note that the mainlobe is return as the first lobe.
+    """
+
+    ps = argparse.ArgumentParser(description=description)
+    ps.add_argument("image", help="Image of the psuedo-Stokes I beam.")
+    ps.add_argument("-p", "--perc", type=float, default=0.1,
+                    help="Percentage of attenuation out to which determines "
+                         "the size of the primary beam. [Default 0.1]")
+    ps.add_argument("-m", "--metafits", action="store_true",
+                    help="Supply a metafits file to make a primary beam image. "
+                         "If this option is used the positional argument should "
+                         "be the metafits file.")
+
+    args = ps.parse_args()
+
+    if args.metafits:
+
+        t, delays, freq, _ = parsers.parse_metafits(args.image)
+        hdu = get_beam.make_beam_image(t, delays, freq, return_hdu=True)
+
+    else:
+
+        hdu = fits.open(args.image)[0]
+
+
+    lobes = get_beam.find_lobes(hdu, perc=args.perc)
+
+    # Main lobe:
+    print("main: {:.2f} {:+.2f} {:.2f}".format(lobes[1].ra, 
+                                               lobes[1].dec, 
+                                               lobes[1].maximum_size))
+    for i in range(2, len(lobes.keys())+1):
+        print("side: {:.2f} {:+.2f} {:.2f}".format(lobes[i].ra,
+                                                   lobes[i].dec,
+                                                   lobes[i].maximum_size))
+
+
+if __name__ == "__main__":
+    main()

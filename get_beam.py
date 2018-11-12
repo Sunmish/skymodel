@@ -194,11 +194,14 @@ class Lobe(object):
 
     def __init__(self, x, y, arr):
 
-        self.x = x
-        self.y = y
-
+        self.original_x = x
+        self.original_y = y
         # TODO control +/-1 values to ensure there are actually pixels there
-        self.arr = arr[min(x)-1:max(x)+1, min(y)-1:max(y)+1]
+        self.arr = arr[min(x)-1:max(x)+2, min(y)-1:max(y)+2]
+
+        self.x, self.y = np.indices((self.arr.shape[0]-1, self.arr.shape[1]-1))
+        self.x = self.x.flatten()
+        self.y = self.y.flatten()
 
         # These are manually added to:
         self.central_coords = None
@@ -208,10 +211,33 @@ class Lobe(object):
     def max_size(self):
         """Calculate max separation between pixels in the array."""
 
-        coords = [(x, y) for x in self.x for y in self.y]
+        # coords = [(x, y) for x in self.x for y in self.y]s
 
-        boundary = self.arr
+        boundary = [Lobe.is_boundary(self.x[i], self.y[i], self.arr) for i in range(len(self.x))]
+        self.boundariesx = self.x[np.where(boundary)]
+        self.boundariesy = self.y[np.where(boundary)]
 
+        boundaries = [(self.boundariesx[i], self.boundariesy[i]) for i in range(len(self.boundariesx))]
+        self.size = distance.cdist(boundaries, boundaries, "euclidean").max()
+
+
+    @staticmethod
+    def is_boundary(x, y, arr):
+        """Determine if arr[x, y] is a boundary pixel."""
+
+        if arr[x, y] == 0.:
+            return False
+
+        if x == 0 or x == arr.shape[0]-1 or y == 0 or y == arr.shape[1]-1:
+            return False
+
+        indicesx = np.array([x+1, x+1, x+1, x-1, x-1, x-1, x, x])
+        indicesy = np.array([y+1, y-1, y, y+1, y-1, y, y-1, y+1])
+
+        if 0. in arr[indicesx, indicesy]:
+            return True
+        else:
+            return False
 
 
     @staticmethod
@@ -222,28 +248,18 @@ class Lobe(object):
 
 
     @staticmethod
-    def centroid(arr):
-        """Find centroid of arr.
+    def centroid(x, y, arr):
+        """Find weighted centroid of a set of points."""
 
-        Taken from https://stackoverflow.com/a/19125498
-        """
-        
-        h, w = arr.shape
-        x = np.arange(h)
-        y = np.arange(w)
-        x1 = np.ones((1, h))
-        y1 = np.ones((w, 1))
+        x = x.flatten()
+        y = y.flatten()
+        a = arr[x, y].flatten()
+        asum = np.nansum(a)
 
-        cenx = (np.dot(np.dot(x1, arr), y)) / (np.dot(np.dot(x1, arr), y1)) 
-        ceny = (np.dot(np.dot(x, arr), y1)) / (np.dot(np.dot(x1, arr), y1))
+        cenx = np.nansum(x*a)/asum
+        ceny = np.nansum(y*a)/asum
 
-        return cenx, ceny
-
-
-    @staticmethod
-    def cartesian_distance(x1, y1, x2, y2):
-        """Cartesian distance between pair of points."""
-        return np.sqrt((x1-x2)**2 + (y1-y2)**2)
+        return int(cenx), int(ceny)
 
 
 
@@ -259,19 +275,29 @@ def find_lobes(hdu, perc=0.1):
     # Convert to a data format usable by scipy:
     arr = hdu.data.copy().byteswap().newbyteorder().astype("float64")
     
-    lobe_image, nlabels = ndimage.label(hdu.data)
+    lobe_image, nlabels = ndimage.label(arr)
 
     lobes = {}
-    lobe_numbers = set(lobe_image.flatten()).remove(0)
+
+    lobe_numbers = set(lobe_image.flatten())
+    lobe_numbers.remove(0)
 
     for lobe in lobe_numbers:
 
         x, y = np.where(lobe_image == lobe)
         l = Lobe(x, y, arr)
-        cenx, ceny = Lobe.centroid(l.arr)
+        l.max_size()
+        l.maximum_size = l.size * hdu.header["CDELT2"]
+        l.cenx, l.ceny = Lobe.centroid(x, y, arr)
+        ra, dec = Lobe.pix_to_world(l.ceny, l.cenx, w)
 
-        max_dist = 0
+        # Avoid those pesky zero-sized arrays:
+        l.ra = float(ra)
+        l.dec = float(dec) 
 
+        lobes[lobe] = l
+
+    return lobes
 
 
 
