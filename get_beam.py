@@ -11,6 +11,9 @@ from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from astropy import units as u
 from astropy.wcs import WCS
 
+from scipy import ndimage  # For lobe finding in the primary beam images
+from scipy.spatial import distance
+
 import logging
 
 # MWA beam-related imports:
@@ -121,9 +124,33 @@ def atten_source(source, t, delays, freq, alpha=-0.7):
     return total_atten_flux
 
 
-def make_beam_image(t, delays, freq, outname, cmap="cubehelix", stretch="sqrt", 
-                    npix=1500, ra=75., dec=-26., plot=False):
-    """
+
+def make_beam_image(t, delays, freq, outname=None, cmap="cubehelix", stretch="sqrt", 
+                    npix=1500, ra=75., dec=-26., plot=False, return_hdu=False):
+    """Make a FITS image of the psuedo-I beam response.
+
+    Parameters
+    ----------
+    t : int or float
+        GPS time in iso format. From `parse_metafits` in `skymodel.parsers`.
+    delays : list
+        List of delays. From `parse_metafits` in `skymodel.parsers`.
+    freq : float
+        Frequency in Hz. From `parse_metafits` in `skymodel.parsers`.
+    outname : str
+        Output file name for the beam FITS image.
+    cmap : str, optional
+        Colormap to use if plotting. [Default cubehelix]
+    npix : int, optional
+        Size of the beam image. This changes the pixel dimensions. [Default 1500]
+    ra : float, optional
+        RA for center of the image. [Default 75 (05:00:00)]
+    dec : float, optional
+        Dec. for center of the image. [Default -26]
+    plot : bool, optional
+        Switch true if wanting to make a simple plot. [Default False]
+
+
     """
 
     # Initialise a FITS image:
@@ -151,8 +178,100 @@ def make_beam_image(t, delays, freq, outname, cmap="cubehelix", stretch="sqrt",
 
     hdu.data[y, x] = beam_value(r, d, t, delays, freq, return_I=True)
 
-    # if plot:
-        
+    if plot:
+        print("Plotting not yet implemented.")  
 
-    hdu.writeto(outname, clobber=True)
+    if outname is not None:
+        hdu.writeto(outname, clobber=True)
+    if return_hdu:
+        return hdu
+
+
+
+class Lobe(object):
+    """Class to hold information about a lobe of the primary beam."""
+
+
+    def __init__(self, x, y, arr):
+
+        self.x = x
+        self.y = y
+
+        # TODO control +/-1 values to ensure there are actually pixels there
+        self.arr = arr[min(x)-1:max(x)+1, min(y)-1:max(y)+1]
+
+        # These are manually added to:
+        self.central_coords = None
+        self.maximum_size = None
+
+
+    def max_size(self):
+        """Calculate max separation between pixels in the array."""
+
+        coords = [(x, y) for x in self.x for y in self.y]
+
+        boundary = self.arr
+
+
+
+    @staticmethod
+    def pix_to_world(x, y, wcs):
+        """Convert pixel to world coordinates."""
+
+        return  wcs.all_pix2world(x, y, 0)
+
+
+    @staticmethod
+    def centroid(arr):
+        """Find centroid of arr.
+
+        Taken from https://stackoverflow.com/a/19125498
+        """
+        
+        h, w = arr.shape
+        x = np.arange(h)
+        y = np.arange(w)
+        x1 = np.ones((1, h))
+        y1 = np.ones((w, 1))
+
+        cenx = (np.dot(np.dot(x1, arr), y)) / (np.dot(np.dot(x1, arr), y1)) 
+        ceny = (np.dot(np.dot(x, arr), y1)) / (np.dot(np.dot(x1, arr), y1))
+
+        return cenx, ceny
+
+
+    @staticmethod
+    def cartesian_distance(x1, y1, x2, y2):
+        """Cartesian distance between pair of points."""
+        return np.sqrt((x1-x2)**2 + (y1-y2)**2)
+
+
+
+def find_lobes(hdu, perc=0.1):
+    """Find main lobe and any sidelobes in a beam image."""
+
+    w = WCS(hdu.header)  # For converting to world coordinates.
+
+    # First set everything < 0.1 to zero and set nans to zero:
+    hdu.data[np.where(np.isnan(hdu.data))] = 0.
+    hdu.data[hdu.data < perc] = 0.
+
+    # Convert to a data format usable by scipy:
+    arr = hdu.data.copy().byteswap().newbyteorder().astype("float64")
+    
+    lobe_image, nlabels = ndimage.label(hdu.data)
+
+    lobes = {}
+    lobe_numbers = set(lobe_image.flatten()).remove(0)
+
+    for lobe in lobe_numbers:
+
+        x, y = np.where(lobe_image == lobe)
+        l = Lobe(x, y, arr)
+        cenx, ceny = Lobe.centroid(l.arr)
+
+        max_dist = 0
+
+
+
 

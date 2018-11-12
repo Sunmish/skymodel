@@ -1,8 +1,9 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 
 import argparse
 
 from skymodel import get_beam, parsers
+
 
 
 def main():
@@ -30,3 +31,6 @@ def main():
                              cmap=args.cmap, plot=args.plot)
 
     
+
+if __name__ == "__main__":
+    main()
