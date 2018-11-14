@@ -19,7 +19,7 @@ class Component(object):
     """Component object."""
 
 
-    def __init__(self, ra, dec, flux, freq):
+    def __init__(self, ra, dec, flux, freq, a=None, b=None, pa=None):
 
         if isinstance(ra, str):
             self.radec = SkyCoord(ra, dec)
@@ -37,6 +37,15 @@ class Component(object):
             raise ValueError("len(flux) = {} != len(freq) = {}!".format(len(self.flux),
                                                                         len(self.freq)))
 
+        if a is not None and b is not None and pa is not None:
+            self.a = float(a)
+            self.b = float(b)
+            self.pa = float(pa)
+        else:
+            self.a = 0.
+            self.b = 0.
+            self.pa = 0.
+
 
     def add_freq(self, flux, freq):
         """Add additional frequency data.
@@ -46,6 +55,7 @@ class Component(object):
 
         self.at_freq = freq
         self.at_flux = flux
+
 
 
 class Source(object):
@@ -60,11 +70,11 @@ class Source(object):
         self.ncomponents = 0
 
 
-    def add_component(self, ra, dec, flux, freq):
+    def add_component(self, ra, dec, flux, freq, a=None, b=None, pa=None):
         """Add additional components if required."""
 
         self.components = np.append(self.components,
-                                    Component(ra, dec, flux, freq))
+                                    Component(ra, dec, flux, freq, a, b, pa))
         self.ncomponents = len(self.components)
 
 
@@ -150,43 +160,51 @@ def parse_ao(aofile):
     sources = []
 
     with open(aofile, "r") as f:
-        lines = f.readlines()
 
+        lines = f.readlines()
         found_source = False
         found_component = False
+
         for i, line in enumerate(lines):
     
             if found_component and found_source:
+
                 if "frequency" in line:
+                
                     freq.append(float(line.split()[1])*1.e6)
                     flux.append(float(lines[i+1].split()[2]))
+                
                     if "}" in lines[i+2] and "}" in lines[i+3]:
-                        source.add_component(ra=ra,
-                                             dec=dec,
-                                             flux=flux,
-                                             freq=freq)
+
+                        source.add_component(ra, dec, flux, freq, a, b, pa)
                         logging.debug("Found flux, freq: {}, {}".format(flux,
                                                                         freq))
                         found_component = False
 
             elif "name" in line:
+                
                 if found_source:
                     sources.append(source)
+                
                 name = " ".join(line.split()[1:]).strip("\n").strip("\"")
                 logging.debug("Found {}".format(name))
                 source = Source(name)
                 found_source = True
 
             elif "component" in line and found_source:
-                # if "point" in lines[i+1]:  # Only deal with point sources.
+
                 found_component = True
                 ra = lines[i+2].split()[1]
                 dec = lines[i+2].split()[2].strip("\n")
                 logging.debug("Found component at {}, {}".format(ra, dec))
                 flux, freq = [], []
-                # else:
-                #     logging.warning("Only point sources are currently supported. ({})".format(name))
-                #     break
+
+                if "gaussian" in lines[i+1]:
+                    # Record the major and minor axes as well as the pa:
+                    _, a, b, pa = lines[i+3].split()
+                else:
+                    a = b = pa = None
+
 
         
         if found_source:

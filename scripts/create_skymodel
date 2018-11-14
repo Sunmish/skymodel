@@ -58,6 +58,9 @@ def main():
     else:
         exclusion_coords = None
     
+    # Exclusion zone is set to 1 arcmin around sources - as this is about the 
+    # semi major axis of the 200 MHz GLEAM restoring beam.
+
     create_model(catalogue=options.catalogue,
                  metafits=options.metafits, 
                  outname=options.outname,  
@@ -67,7 +70,7 @@ def main():
                  nmax=options.nmax, 
                  plot=options.plot, 
                  exclude_coords=exclusion_coords, 
-                 exclusion_zone=10.)
+                 exclusion_zone=1.)
 
 
 

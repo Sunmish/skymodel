@@ -16,7 +16,7 @@ from astropy.time import Time
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.INFO)
+                    level=logging.DEBUG)
 
 from .get_beam import beam_value
 from . import fitting
@@ -164,15 +164,14 @@ def create_model(catalogue, metafits, outname,  \
     # Predict values at other frequencies - overwrite existing GLEAM 
     # measurements with these predictions.
 
-
     for i in range(len(GLEAM)):
 
 
         if exclude_coords is not None:
             coords_ = SkyCoord(ra=GLEAM["RAJ2000"][i], dec=GLEAM["DEJ2000"][i],
-                        unit=(u.deg, u.deg))    
-            excl_seps = coords_.separation(exclude_coords).value
-            if excl_seps.any() < exclusion_zone/60.:
+                               unit=(u.deg, u.deg))    
+            excl_seps = coords_.separation(exclude_coords)
+            if (excl_seps.value < exclusion_zone/60.).any():
 
                 logging.debug("{0} within exclusion zone.".format(i))
                 GLEAM["Fintwide"][i] = 0.
@@ -210,14 +209,11 @@ def create_model(catalogue, metafits, outname,  \
                 perr = np.sqrt(np.diag(pcov))
 
                 if np.isnan(pcov[0, 0]):
-                    logging.debug("pcov[0, 0] is nan for {0}".format(i))
                     raise RuntimeError
                 elif perr[0]/popt[0] > 0.5:  # Poor fit?
-                    logging.debug("perr is too high for {0}".format(i))
                     raise RuntimeError
 
             except RuntimeError:
-                logging.debug("Fitting error(s) for {0}".format(i))
                 GLEAM["Fintwide"][i] = 0.
 
             else:
@@ -246,8 +242,8 @@ def create_model(catalogue, metafits, outname,  \
 
         else:
 
-            logging.debug("Too few points for {0}".format(i))
             GLEAM["Fintwide"][i] = 0.
+
 
     GLEAM = GLEAM[GLEAM["Fintwide"] > 0.]
     logging.info("GLEAM sources after modelling: {0}".format(len(GLEAM)))

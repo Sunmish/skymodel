@@ -1,0 +1,84 @@
+#! /usr/bin/env python
+
+import argparse
+from skymodel.parsers import parse_ao
+
+
+def ellipse_formatter(ra, dec, a, b, pa):
+    """Format a line for the region file."""
+    return "ellipse {}d {}d {}\" {}\" {}d\n".format(ra, dec, a/2., b/2., pa)
+
+
+def point_formatter(ra, dec, marker="cross"):
+    """Forma a line for a region file."""
+    return "point {}d {}d # point={}\n".format(ra, dec, marker)
+
+
+def csv(infile, color="green"):
+    """For .csv skymodel file output from create_skymodel."""
+
+    outname = infile.replace(".csv", ".reg")
+
+    with open(outname, "w+") as f:
+        f.write("# Region file format: DS9 version 4.1\n")
+        f.write("global color={}\n".format(color))
+        f.write("fk5\n")
+
+        with open(infile, "r") as g:
+            lines = g.readlines()
+            for line in lines:
+                if "RA" not in line:
+                    bits = line.split(",")
+                    f.write(ellipse_formatter(*bits[:-1]))
+
+
+def ao(infile, color="green", marker="cross"):
+    """For AO-style model files."""
+
+    outname = infile[:-4]+".reg"
+
+    sources = parse_ao(infile)
+
+    with open(outname, "w+") as f:
+        f.write("# Region file format: DS9 version 4.1\n")
+        f.write("global color={}\n".format(color))
+        f.write("fk5\n")
+
+        for source in sources:
+            for component in source.components:
+                if component.a == 0.:
+                    # Point source:
+                    f.write(point_formatter(ra=component.radec.ra.value,
+                                            dec=component.radec.dec.value,
+                                            marker=marker))
+                else:
+                    f.write(ellipse_formatter(ra=component.radec.ra.value,
+                                              dec=component.radec.dec.value,
+                                              a=component.a,
+                                              b=component.b,
+                                              pa=component.pa))
+
+
+
+def main():
+        
+    description = """
+    Create a ds9 region file from a skymodel .csv file.
+    """
+
+    ps = argparse.ArgumentParser(description=description)
+    ps.add_argument("infile")
+    ps.add_argument("-m", "--marker", default="cross", type=str)
+    ps.add_argument("-c", "--color", default="green", type=str)
+
+    args = ps.parse_args()
+    
+    if args.infile.endswith(".csv"):
+        csv(args.infile, args.color)
+    else:
+        ao(args.infile, args.color, args.marker)
+
+
+
+if __name__ == "__main__":
+    main()
