@@ -102,7 +102,7 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
         raise ValueError("Unable to parse `inp`: {}".format(inp))
 
     # files_to_use = ""
-    # total_fluxes = ""
+    total_fluxes = ""
 
 
     for spec in files:
@@ -132,10 +132,11 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
 
             # files_to_use += "{}\n".format(spec)
 
-        # total_fluxes += "{}\n".format(tflux)
+        total_fluxes += "{}: {}\n".format(spec, tflux)
 
         # print("{}: {}".format(spec, tflux))
 
+    print(total_fluxes)
     all_models.flush()
     all_models.close()
 
