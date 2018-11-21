@@ -7,7 +7,8 @@ from .parsers import parse_ao, parse_metafits
 from .get_beam import atten_source
 
 
-def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False):
+def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
+               curved=True):
     """Get total flux from aocal file. 
 
     Assume single source, and calculate the flux at a given frequency for each
@@ -51,7 +52,8 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False):
         # First calculate the flux density at the given frequency:
         source.at_freq(freq=at_freq,
                        components=range(source.ncomponents),
-                       alpha=alpha)
+                       alpha=alpha,
+                       curved=curved)
 
         
         if (metafits is not None) and attenuate:
@@ -69,7 +71,7 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False):
 
 
 def prep_model(inp, metafits, threshold, outname="./all_models.txt",
-               prefix="model", exclude=None):
+               prefix="model", exclude=None, curved=True):
     """Prepare a combined AO-style model, using models in a directory.
 
     Parameters
@@ -113,7 +115,8 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
 
         tflux = total_flux(spec, 
                            attenuate=True, 
-                           metafits=metafits)
+                           metafits=metafits,
+                           curved=curved)
         
         if tflux > threshold:
 

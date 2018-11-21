@@ -6,6 +6,8 @@ from skymodel.model_flux import prep_model
 
 def main():
 
+    help_ = {"d": ""}
+
     ps = ArgumentParser()
     ps.add_argument("-d", "--dir", dest="dir", default=None)
     ps.add_argument("-i", "--input", dest="input", nargs="*")
@@ -15,6 +17,9 @@ def main():
     ps.add_argument("-o", "--outname", dest="outname", default="all_models.txt")
     ps.add_argument("-p", "--prefix", dest="prefix", default="model")
     ps.add_argument("-x", "--exclude", dest="exclude", default=None, nargs="*")
+    ps.add_argument("-C", "--curved", dest="curved", action="store_true",
+                    help="Switch on if wanting to use a curved power law model "
+                         "for estimating the flux density of sources.")
 
     args = ps.parse_args()
 
@@ -32,7 +37,8 @@ def main():
                threshold=args.threshold,
                outname=args.outname, 
                prefix=args.prefix,
-               exclude=args.exclude)
+               exclude=args.exclude,
+               curved=args.curved)
 
 if __name__ == "__main__":
     main()

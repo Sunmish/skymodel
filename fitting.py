@@ -27,31 +27,39 @@ def two_point_index(x1, x2, y1, y2):
     return np.log10(y1/y2)/np.log10(x1/x2)
 
 
+# def powerlaw(x, a, b):
+#     """Simple powerlaw function."""
+#     return (10.**b)*x**a
+
 def powerlaw(x, a, b):
     """Simple powerlaw function."""
-    return (10.**b)*x**a
+    return a*(x**b)
 
 
-def upowerlaw(x, a, b, ea, eb):
-    """Uncertainty in powerlaw calculation."""
-    f = powerlaw(x, a, b)
-    df = f*np.sqrt(abs(np.log(x)*ea)**2 + 
-                   abs(np.log(10.)*eb)**2)
-    return df
+# def upowerlaw(x, a, b, ea, eb):
+#     """Uncertainty in powerlaw calculation."""
+#     f = powerlaw(x, a, b)
+#     df = f*np.sqrt(abs(np.log(x)*ea)**2 + 
+#                    abs(np.log(10.)*eb)**2)
+#     return df
 
+
+# def cpowerlaw(x, a, b, c):
+#     """Simple curved powerlaw function."""
+#     return (x**a * np.exp(b*np.log(x)**2 + c))
 
 def cpowerlaw(x, a, b, c):
     """Simple curved powerlaw function."""
-    return (x**a * np.exp(b*np.log(x)**2 + c))
+    return a*(x**b)*np.exp(c*np.log(x)**2)
 
 
-def ucpowerlaw(x, a, b, c, ea, eb, ec):
-    """Uncertainty in simple curved powerlaw calculation."""
-    f = cpowerlaw(x, a, b, c)
-    df = f*np.sqrt(abs(a*x**(-1.)*ea)**2 + 
-                   abs(eb*np.log(x)**2)**2 + 
-                   abs(ec)**2)
-    return df
+# def ucpowerlaw(x, a, b, c, ea, eb, ec):
+#     """Uncertainty in simple curved powerlaw calculation."""
+#     f = cpowerlaw(x, a, b, c)
+#     df = f*np.sqrt(abs(a*x**(-1.)*ea)**2 + 
+#                    abs(eb*np.log(x)**2)**2 + 
+#                    abs(ec)**2)
+#     return df
 
 
 def cb_cpowerlaw(x, y, yerr, pcov, popt, conf=68.):
@@ -104,12 +112,12 @@ def fit(f, x, y, yerr=None, params=None, return_pcov=False):
 
         
     if f == powerlaw and params is None:
-        params = [-0.7, 1.]
+        params = [1., -1.]
     elif f == cpowerlaw and params is None:
-        params = [-0.7, 1., 1.]
+        params = [1., -1., 1.]
     elif params is None:
-            raise ValueError("`params` must be supplied if not using one of the "
-                             "builtin models: `powerlaw` or `cpowerlaw.")
+        raise ValueError("`params` must be supplied if not using one of the "
+                         "builtin models: `powerlaw` or `cpowerlaw.")
 
     if yerr is not None:
         yerr = np.asarray(yerr)
@@ -117,7 +125,8 @@ def fit(f, x, y, yerr=None, params=None, return_pcov=False):
     popt, pcov = curve_fit(f, np.asarray(x), np.asarray(y), params,
                            absolute_sigma=True, 
                            method="lm", 
-                           sigma=yerr)
+                           sigma=yerr,
+                           maxfev=100000)  # > the default of 800
     perr = np.sqrt(np.diag(pcov))
 
     if return_pcov:

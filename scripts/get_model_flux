@@ -25,6 +25,10 @@ def main():
                          help="Switch True if wanting to attenuate by the primary "
                               "beam response. To do this, a metafits file must "
                               "be specified.")
+    parser.add_argument("-C", "--curved", dest="curved", action="store_true",
+                        help="Switch true if wanting to use a curved power "
+                             "law model for sources with > 3 measurements.")
+
 
     args = parser.parse_args()
 
@@ -37,7 +41,8 @@ def main():
                        freq=args.freq,
                        alpha=args.alpha,
                        metafits=args.metafits,
-                       attenuate=args.atten)
+                       attenuate=args.atten,
+                       curved=args.curved)
 
     print("{}".format(tflux))
 

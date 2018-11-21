@@ -16,7 +16,7 @@ from astropy.time import Time
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.DEBUG)
+                    level=logging.INFO)
 
 from .get_beam import beam_value
 from . import fitting
@@ -60,6 +60,30 @@ def gaussian_formatter(name, ra, dec, major, minor, pa, freq, flux, precision=3)
     return gaussian
 
 
+
+def point_formatter(name, ra, dec, freq, flux, precision=3):
+    """Format point source for ao-cal skymodel."""
+
+    measurements = ""
+    for i in range(len(freq)):
+        measurements += "measurement {{\n" \
+                       "frequency {freq} MHz\n" \
+                       "fluxdensity Jy {flux:.3f} 0.0 0.0 0.0 \n" \
+                       "}}\n".format(freq=freq[i], flux=round(flux[i], 3))
+
+    point = "\nsource {{\n" \
+            "name \"{name}\"\n" \
+            "component {{\n" \
+            "type point\n" \
+            "position {ra} {dec}\n" \
+            "{measurement}" \
+            "}}\n" \
+            "}}\n".format(name=name, ra=ra, dec=dec, measurement=measurements)
+
+    return point
+
+
+
 def get_exclusion_coords(skymodel):
     """Get coordinates to create exclusion zone around."""
 
@@ -78,10 +102,11 @@ def get_exclusion_coords(skymodel):
     return exclusion_coords
 
 
+
 def create_model(catalogue, metafits, outname,  \
                  threshold=1., ratio=1.1, radius=120., nmax=500, plot=False, \
                  exclude_coords=None, exclusion_zone=5., \
-                 return_catalogue=False, weight=False):
+                 return_catalogue=False, weight=False, curved=True):
     """Create a GLEAM skymodel.
 
     Parameters
@@ -200,17 +225,24 @@ def create_model(catalogue, metafits, outname,  \
                 tmp_eflux = np.asarray(tmp_eflux)
                 tmp_int = np.asarray(tmp_int)
 
-                popt, pcov = fitting.fit(f=fitting.cpowerlaw, 
+                if curved:
+                    model = fitting.cpowerlaw
+                    param0 = [1., -1., 1.]
+                else:
+                    model = fitting.cpowerlaw
+                    param0 = [1., -1.]
+
+                popt, pcov = fitting.fit(f=model, 
                                          x=tmp_freq,
                                          y=tmp_flux,
                                          yerr=tmp_eflux,
-                                         params=[-0.7, 1., 1.],
+                                         params=param0,
                                          return_pcov=True)
                 perr = np.sqrt(np.diag(pcov))
 
-                if np.isnan(pcov[0, 0]):
+                if np.isnan(pcov[1, 1]):
                     raise RuntimeError
-                elif perr[0]/popt[0] > 0.5:  # Poor fit?
+                elif abs(perr[1]/popt[1]) > 1:  # Poor fit?
                     raise RuntimeError
 
             except RuntimeError:
@@ -218,7 +250,7 @@ def create_model(catalogue, metafits, outname,  \
 
             else:
 
-                predicted_flux = fitting.cpowerlaw(float(freq), *popt)
+                predicted_flux = model(float(freq), *popt)
                 GLEAM["Fintwide"][i] = predicted_flux  
                 GLEAM["Fpwide"][i] = predicted_flux
 
@@ -227,18 +259,18 @@ def create_model(catalogue, metafits, outname,  \
                         = fitting.cpowerlaw(FREQ_LIST[f], *popt)
 
 
-                if plot:
+                # if plot:
 
-                    if not os.path.exists("./plots"):
-                        os.mkdir("./plots")
+                #     if not os.path.exists("./plots"):
+                #         os.mkdir("./plots")
 
-                    fitting.plot("./plots/{}_fit.png".format(GLEAM["GLEAM"][i]),
-                                 f=fitting.cpowerlaw,
-                                 x=tmp_freq,
-                                 y=tmp_flux,
-                                 yerr=tmp_eflux,
-                                 popt=popt,
-                                 pcov=pcov)
+                #     fitting.plot("./plots/{}_fit.png".format(GLEAM["GLEAM"][i]),
+                #                  f=fitting.cpowerlaw,
+                #                  x=tmp_freq,
+                #                  y=tmp_flux,
+                #                  yerr=tmp_eflux,
+                #                  popt=popt,
+                #                  pcov=pcov)
 
         else:
 
@@ -273,7 +305,7 @@ def create_model(catalogue, metafits, outname,  \
         logging.info("GLEAM sources after new flux treshold of {0} Jy: {1}".format(
                      threshold, len(GLEAM)))
     
-
+    logging.info("Maximum brightness source: {}".format(max(GLEAM["Fpwide"])))
 
     with open(outname, "w+") as o:
         o.write("skymodel fileformat 1.1\n")
@@ -305,4 +337,198 @@ def create_model(catalogue, metafits, outname,  \
                                                        GLEAM["pawide"][i],
                                                        GLEAM["Fintwide"][i]))
 
-        
+
+
+def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1., 
+                    s200_cut=1., s1400_cut=0.1, s843_cut=0.1, s150_cut=0.1,
+                    exclude_coords=None, exclusion_zone=1., d_limit=(-90, 90),
+                    radius=180., nmax=200):
+    """Create a skymodel using a pre-made catalogue.
+
+    This requires a very specific format.
+
+    The FITS binary table requires columns of the form:
+    # ra | dec | a_p | b_p | a_c ... c_c | S1400 | S843 | S200 | S150
+
+    where a/b_p are model parameters for a power law fit, and
+    a/b/c_c are model parameters for a curved powerlaw fit.
+
+    These are used to estimate flux density at the required frequency,
+    with preference to the curved powerlaw --> powerlaw --> assumed index given
+    by `alpha`. If `alpha` is None, and no model parameters are given for a 
+    source then that source is not used in the model.
+
+    Parameters
+    ----------
+    table : str
+        Filepath for a FITS binary table.
+    metafits : str
+        Filepath for an observation's metafits file.
+    outname : str, optional
+        Output file name. Default is created from the metafits name.
+    alpha : float, optional
+        If a source does not have model parameters, this spectral index,
+        long with S200, is used to estimate the flux density.
+    a_cut : float, optional
+        Apparent brightness cut.
+    sN_cut : float, optional
+        Flux density cut to make prior to esimating the flux density.
+    exclude_coords : list or array, optional
+        List of SkyCoord objects describing sources to exclude.
+    exclusion_zone : float, optional
+        Zone in arcmin around sources specified in `exclude_coords` to 
+        exclude sources.
+    d_limits : tuple, optional
+        Limiting declination values.
+
+    """
+
+    if outname is None:
+        outname = metafits.replace(".metafits", "_skymodel.txt")
+
+    t, delays, freq, pnt = parse_metafits(metafits)
+    freq /= 1.e6
+
+    catalogue = fits.open(table)[1].data
+
+    logging.info("Total NS sources: {}".format(len(catalogue)))
+
+    freqs = {"S200": s200_cut,
+             "S1400": s1400_cut*1000.,
+             "S843": s843_cut*1000.,
+             "S150": s150_cut*1000.
+             }
+    
+    for f in freqs.keys():
+        c = catalogue.field(f).copy()
+        c[~np.isfinite(c)] = 1.e30
+        catalogue = catalogue[c > freqs[f]]
+        logging.info("NS sources after {} cut: {}".format(f, len(catalogue)))
+
+    catalogue = catalogue[np.where((d_limit[0] <= catalogue.field("dec")) &
+                                   (catalogue.field("dec") <= d_limit[1]))[0]]
+    logging.info("NS sources after declination cut: {}".format(len(catalogue)))
+
+    coords = SkyCoord(ra=catalogue.field("ra"), dec=catalogue.field("dec"), 
+                      unit=(u.deg, u.deg))
+
+    seps = pnt.separation(coords).value
+    catalogue = catalogue[np.where(seps < radius)[0]]
+    logging.info("Total NS sources after radial cut: {}".format(len(catalogue)))
+
+    coords = SkyCoord(ra=catalogue.field("ra"), dec=catalogue.field("dec"), 
+                      unit=(u.deg, u.deg)) 
+
+    
+    stokesI = beam_value(catalogue.field("ra"), catalogue.field("dec"),
+                         t, delays, freq*1.e6, return_I=True)
+
+    if alpha is None:
+        alpha = np.nanmean(catalogue.field("beta_p"))
+
+    for i in range(len(catalogue)):
+        # Now for to the long and painful part:
+
+        row = catalogue[i]
+
+        if not np.isnan(row["alpha_c"]):
+
+            catalogue[i]["S200"] = fitting.cpowerlaw(freq,
+                                                     a=row["alpha_c"],
+                                                     b=row["beta_c"],
+                                                     c=row["gamma_c"])/1000.
+
+        elif not np.isnan(row["alpha_p"]):
+
+            catalogue[i]["S200"] = fitting.powerlaw(freq,
+                                                    a=row["alpha_p"],
+                                                    b=row["beta_p"])/1000.
+
+        elif alpha is not None:
+
+            catalogue[i]["S200"] = (row["S200"]*(freq/200.)**alpha)
+
+        else:
+
+            catalogue[i]["S200"] = np.nan
+
+        # Attenuate by the primary beam
+        catalogue[i]["S1400"] = catalogue[i]["S200"]
+        catalogue[i]["S200"] *= stokesI[i]
+
+
+
+    catalogue = catalogue[np.isfinite(catalogue.field("S200"))]
+
+    logging.info("Total NS sources after estimating flux density: {}".format(len(catalogue)))
+
+    catalogue = catalogue[catalogue.field("S200") > a_cut]
+
+    logging.info("Total NS sources after apparent brightness cut: {}".format(len(catalogue)))
+
+    if len(catalogue) > nmax:
+        logging.info("More than nmax={0} sources in catalogue - trimming.".format(nmax))
+        a_cut = round(np.sort(catalogue.field("S200"))[::-1][nmax-1], 1)
+        catalogue = catalogue[catalogue.field("S200") > a_cut]
+        logging.info("NS sources after new flux treshold of {0} Jy: {1}".format(
+                     a_cut, len(catalogue)))
+
+
+    coords = SkyCoord(ra=catalogue.field("ra"), dec=catalogue.field("dec"), 
+                      unit=(u.deg, u.deg))
+
+    for i in range(len(catalogue)):
+
+        if exclude_coords is not None:
+
+            excl_seps = coords[i].separation(exclude_coords)
+            if (excl_seps.value < exclusion_zone/60.).any():
+                logging.debug("{} within exclusion zone.".format(i))
+                catalogue[i]["S200"] = np.nan
+                continue
+
+            else:
+                logging.debug("{} not within exclude coords".format(i))
+
+    catalogue = catalogue[np.isfinite(catalogue.field("S200"))]
+
+
+    coords = SkyCoord(ra=catalogue.field("ra"), dec=catalogue.field("dec"), 
+                      unit=(u.deg, u.deg))
+
+    logging.info("Maximum brightness source: {:.2f}".format(round(max(catalogue.field("S200"), 2))))
+
+    with open(outname, "w+") as o:
+        o.write("skymodel fileformat 1.1\n")
+
+            
+        for i in range(len(catalogue)):
+
+
+
+            r, d = coords[i].to_string("hmsdms").split()
+
+            flux = []
+            for f in FREQ_LIST:
+                if not np.isnan(catalogue[i]["alpha_c"]):
+                    flux.append(fitting.cpowerlaw(f, 
+                                                  a=catalogue[i]["alpha_c"],
+                                                  b=catalogue[i]["beta_c"],
+                                                  c=catalogue[i]["gamma_c"])/1000.)
+                elif not np.isnan(catalogue[i]["alpha_p"]):
+                    flux.append(fitting.powerlaw(f,
+                                                 a=catalogue[i]["alpha_p"],
+                                                 b=catalogue[i]["beta_p"])/1000.)
+                else:
+                    flux.append(catalogue[i]["S1400"]*(f/freq)**alpha)
+
+            pformat = point_formatter(name="Source{}".format(i),
+                                      ra=r,
+                                      dec=d,
+                                      freq=FREQ_LIST,
+                                      flux=flux)
+
+            o.write(pformat)
+
+
+

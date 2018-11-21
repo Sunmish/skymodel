@@ -204,7 +204,9 @@ class Lobe(object):
         self.y = self.y.flatten()
 
         # These are manually added to:
-        self.central_coords = None
+        self.ra = None
+        self.dec = None
+        self.sky = None
         self.maximum_size = None
 
 
@@ -294,6 +296,7 @@ def find_lobes(hdu, perc=0.1):
         # Avoid those pesky zero-sized arrays:
         l.ra = float(ra)
         l.dec = float(dec) 
+        l.sky = SkyCoord(ra=l.ra, dec=l.dec, unit=(u.deg, u.deg))
 
         lobes[lobe] = l
 

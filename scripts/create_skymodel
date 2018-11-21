@@ -3,7 +3,9 @@
 import sys
 
 from argparse import ArgumentParser
-from skymodel.create_skymodel import create_model, get_exclusion_coords
+from skymodel.create_skymodel import create_model, create_ns_model, get_exclusion_coords
+from skymodel.parsers import parse_metafits
+from skymodel import get_beam
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
@@ -12,41 +14,69 @@ logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
 
 def main():
 
-    parser = ArgumentParser(description="Create sky model from GLEAM.")
+    description = """
+    Create a skymodel using GLEAM (and possibly a combination of NVSS, SUMSS,
+    TGSS, and GLEAM).
+    """
+
+    epilogue = """
+    In the case of a primary beam sidelobe being within the specified radius
+    and being above  ~25 degrees declination, a combined North+South catalogue
+    should be used. This must be supplied as a catalogue with the following 
+    columns: RA,DEC,alpha_p,beta_p,alpha_c,beta_c,gamma_c,S200,S1400,S843,S150 - 
+    where alpha/beta_p are the power law model parameters and 
+    alpha/beta/gamma_c are the curved power law model parameters.
+    """
+
+    help_ = {"g": "Input GLEAM (and N+S) catalogue location(s). If a second "
+                  "catalogue is specified, this should be the North+South "
+                  "catalogue with RA,DEC,*model_params.",
+             "m": "Input metafits file for an MWA observation.",
+             "o": "Output filename for the skymodel.",
+             "t": "Apparent brightness threshold in Jy for sources. "
+                  "[Default 1 Jy]",
+             "r": "Radius within which to include sources. [Default 120 deg]",
+             "R": "Ratio of source size to beam shape to determine if a source "
+                  "is a point source. [Default 1.1]",
+             "n": "Maximum number of sources to include in the model. "
+                  "The apparent brightness threshold is altered to enforce "
+                  "this limit. [Default 100]",
+             "p": "Enable plotting.",
+             "x": "Existing skymodel format v1.1 files with sources to "
+                  "exclude. An exclusion zone of 1 armin is created around "
+                  "sources within the specified model(s).",
+             "C": "Enable use of a curved powerlaw model for estimating "
+                  "flux density at the required frequency. By default, only "
+                  "a normal power law is used."
+            }
+
+    parser = ArgumentParser(description=description,
+                            epilog=epilogue)
 
     parser.add_argument("-g", "--catalogue", "--gleam", dest="catalogue", 
-                        default=None, help="Input GLEAM catalogue location.")
+                        default=None, help=help_["g"], nargs="*")
     parser.add_argument("-m", "--metafits", dest="metafits", default=None,
-                        help="Name/location of metafits file for observation.")
+                        help=help_["m"])
     parser.add_argument("-o", "--outname", dest="outname", default=None,
-                        help="Output skymodel name.")
-    # Extra options:
-    parser.add_argument("-t", "--threshold", dest="threshold", default=1., type=float, 
-                        help="Threshold below which to cut sources [1 Jy].")
-    parser.add_argument("-r", "--radius", dest="radius", default=120., type=float, 
-                        help="Radius within which to select sources [120 deg].")
+                        help=help_["o"])
+    parser.add_argument("-t", "--threshold", dest="threshold", default=1., 
+                        type=float, help=help_["t"])
+    parser.add_argument("-r", "--radius", dest="radius", default=120., 
+                        type=float, help=help_["r"])
     parser.add_argument("-R", "--ratio", dest="ratio", default=1.2, type=float, 
-                        help="Ratio of source size to beam shape to determine "
-                           "if point source [1.1].")
-    parser.add_argument("-n", "--nmax", dest="nmax", default=500, type=int, 
-                        help="Max number of sources to return. The threshold is "
-                        "recalculated if more sources than nmax are found above it.")
-    parser.add_argument("--plot", action="store_true")
+                        help=help_["R"])
+    parser.add_argument("-n", "--nmax", dest="nmax", default=100, type=int, 
+                        help=help_["n"])
+    parser.add_argument("-p", "--plot", action="store_true", help=help_["p"])
     parser.add_argument("-x", "--exclude_model", dest="exclude", default=None,
-                        help="Skymodel v1.1 format file with existing models. These"
-                             " will be create an exclusion zones of 10 arcmin around these"
-                             " sources.", nargs="*")
-    # parser.add_argument("-w", "--weight", action="store_true", help="Weight apparent"
-    #                     " fluxes by distance from pointing centre to try and "
-    #                     "include more mainlobe sources than sidelobe source "
-    #                     "(especially at higher frequencies).")
+                        help=help_["x"], nargs="*")
+    parser.add_argument("-C", "--curved", dest="curved", action="store_true",
+                        help=help_["C"])
 
     options = parser.parse_args()
 
-    if options.catalogue is None:
-        logging.error("GLEAM catalogue not supplied.")
-        sys.exit(1)
-    elif options.metafits is None:
+
+    if options.metafits is None:
         logging.error("Metafits file not supplied.")
         sys.exit(1)
 
@@ -58,19 +88,57 @@ def main():
     else:
         exclusion_coords = None
     
+    use_ns = False
+
+    if len(options.catalogue) == 2:
+        t, delays, freq, pnt = parse_metafits(options.metafits)
+        beam_hdu = get_beam.make_beam_image(t, delays, freq, 
+                                            ra=pnt.ra.value,
+                                            return_hdu=True)
+        lobes = get_beam.find_lobes(beam_hdu)
+        for lobe in lobes.keys():
+            sep = pnt.separation(lobes[lobe].sky).value
+            if (lobes[lobe].dec+0.5*lobes[lobe].maximum_size > 30. and 
+                sep-0.5*lobes[lobe].maximum_size < radius):
+            
+                logging.info("Sidelobe above useful GLEAM data - using NS catalogue.")
+                use_ns = True
+
+
+
+
     # Exclusion zone is set to 1 arcmin around sources - as this is about the 
     # semi major axis of the 200 MHz GLEAM restoring beam.
 
-    create_model(catalogue=options.catalogue,
-                 metafits=options.metafits, 
-                 outname=options.outname,  
-                 threshold=options.threshold, 
-                 ratio=options.ratio, 
-                 radius=options.radius, 
-                 nmax=options.nmax, 
-                 plot=options.plot, 
-                 exclude_coords=exclusion_coords, 
-                 exclusion_zone=1.)
+    if use_ns:
+        
+        create_ns_model(table=options.catalogue[1],
+                        metafits=options.metafits,
+                        outname=options.outname,
+                        alpha=-0.77,
+                        a_cut=options.threshold,
+                        s200_cut=0.2,
+                        s1400_cut=0.05,
+                        s843_cut=0.1,
+                        s150_cut=0.07,
+                        exclude_coords=exclusion_coords,
+                        exclusion_zone=1.,
+                        d_limit=(-90, 45),
+                        radius=options.radius,
+                        nmax=options.nmax)
+
+    else:
+
+        create_model(catalogue=options.catalogue[0],
+                     metafits=options.metafits, 
+                     outname=options.outname,  
+                     threshold=options.threshold, 
+                     ratio=options.ratio, 
+                     radius=options.radius, 
+                     nmax=options.nmax, 
+                     plot=options.plot, 
+                     exclude_coords=exclusion_coords, 
+                     exclusion_zone=1.)
 
 
 

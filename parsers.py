@@ -9,7 +9,7 @@ from astropy import units as u
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.INFO)
+                    level=logging.DEBUG)
 
 from . import fitting
 from .get_beam import beam_value
@@ -19,7 +19,8 @@ class Component(object):
     """Component object."""
 
 
-    def __init__(self, ra, dec, flux, freq, a=None, b=None, pa=None):
+    def __init__(self, ra, dec, flux, freq, a=None, b=None, pa=None,
+                 alpha=-0.77):
 
         if isinstance(ra, str):
             self.radec = SkyCoord(ra, dec)
@@ -46,6 +47,8 @@ class Component(object):
             self.b = 0.
             self.pa = 0.
 
+        self.alpha = alpha
+
 
     def add_freq(self, flux, freq):
         """Add additional frequency data.
@@ -70,15 +73,17 @@ class Source(object):
         self.ncomponents = 0
 
 
-    def add_component(self, ra, dec, flux, freq, a=None, b=None, pa=None):
+    def add_component(self, ra, dec, flux, freq, a=None, b=None, pa=None,
+                      alpha=None):
         """Add additional components if required."""
 
         self.components = np.append(self.components,
-                                    Component(ra, dec, flux, freq, a, b, pa))
+                                    Component(ra, dec, flux, freq, a, b, pa, alpha))
         self.ncomponents = len(self.components)
 
 
-    def at_freq(self, freq, components=0, curved=True, alpha=-0.7):
+    def at_freq(self, freq, components=0, curved=True, alpha=-0.7, 
+                nearest_freq=2.):
         """Calculate the flux density of the source at a given frequency.
 
         This is done via various methods depending on number of flux density
@@ -103,6 +108,9 @@ class Source(object):
         alpha : float, optional
             Assumed spectral index for when there is only one flux density 
             measurement. [Default -0.7]
+        nearest_freq : float, optional
+            If a flux density measurement exists within `nearest_freq` then 
+            it is used. 
 
 
         This adds an extra attribute to the Component object, and overrides
@@ -116,14 +124,25 @@ class Source(object):
         for c in components:
             comp = self.components[c]
 
+            
+            
+            idx = (np.abs(comp.freq - freq)).argmin()
+            if abs(comp.freq[idx] - freq) < nearest_freq*1.e6:
+                self.components[c].add_freq(flux=comp.flux[idx],
+                                            freq=freq)
+                logging.debug("using nearest freq to {} ({})".format(freq, comp.freq[idx]))
+
+                continue
+
+
             if curved and len(comp.freq) > 3:
                 logging.debug("cpowerlaw with {} parameters".format(len(comp.freq)))
                 model = fitting.cpowerlaw
-                params = [-0.8, 0, 1]
+                params = [1., -1., 1.]
             elif len(comp.freq) > 2:
                 logging.debug("powerlaw with {} parameters".format(len(comp.freq)))
                 model = fitting.powerlaw
-                params = [-1, 1]
+                params = [1., -1.]
             elif len(comp.freq) == 2:
                 logging.debug("two-point with {} parameters".format(len(comp.freq)))
                 index = fitting.two_point_index(x1=comp.freq[0], 
@@ -137,11 +156,11 @@ class Source(object):
                 self.components[c].add_freq(flux=flux_at_freq, freq=freq)
                 continue
             else:
-                logging.debug("from-index with {} parameters".format(len(comp.freq)))
+                logging.debug("from-index ({}) with {} parameters".format(comp.alpha, len(comp.freq)))
                 flux_at_freq = fitting.from_index(x=freq, 
                                                   x1=comp.freq[0], 
                                                   y1=comp.flux[0],
-                                                  index=alpha)
+                                                  index=comp.alpha)
                 self.components[c].add_freq(flux=flux_at_freq, freq=freq)
                 continue
 
@@ -150,6 +169,8 @@ class Source(object):
                                      y=comp.flux,
                                      params=params)
             flux_at_freq = model(float(freq), *popt)
+
+            print popt, perr
 
             self.components[c].add_freq(flux=flux_at_freq, freq=freq)
 
@@ -173,12 +194,13 @@ def parse_ao(aofile):
                 
                     freq.append(float(line.split()[1])*1.e6)
                     flux.append(float(lines[i+1].split()[2]))
+
+                    if "spectral-index" in lines[i+2]:
+                        alpha = float(lines[i+2].split()[2])
                 
                     if "}" in lines[i+2] and "}" in lines[i+3]:
 
-                        source.add_component(ra, dec, flux, freq, a, b, pa)
-                        logging.debug("Found flux, freq: {}, {}".format(flux,
-                                                                        freq))
+                        source.add_component(ra, dec, flux, freq, a, b, pa, alpha)
                         found_component = False
 
             elif "name" in line:
@@ -198,6 +220,7 @@ def parse_ao(aofile):
                 dec = lines[i+2].split()[2].strip("\n")
                 logging.debug("Found component at {}, {}".format(ra, dec))
                 flux, freq = [], []
+                alpha = -0.77  # average over N+S sources
 
                 if "gaussian" in lines[i+1]:
                     # Record the major and minor axes as well as the pa:
