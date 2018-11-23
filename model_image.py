@@ -93,10 +93,6 @@ def create_model(ra, dec, imsize, pixsize, outname, gaussians=None, points=None)
 
             hdu.data[y, x] += gauss2d(x, y, A, beta, sigma_x, sigma_y, x0, y0)
 
-    import matplotlib.pyplot as plt
-    plt.imshow(hdu.data)
-    plt.savefig("test.png")
-
     fits.writeto(outname, hdu.data, hdu.header, clobber=True)
 
 
