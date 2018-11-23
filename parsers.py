@@ -43,9 +43,9 @@ class Component(object):
             self.b = float(b)
             self.pa = float(pa)
         else:
-            self.a = 0.
-            self.b = 0.
-            self.pa = 0.
+            self.a = None
+            self.b = None
+            self.pa = None
 
         self.alpha = alpha
 
@@ -216,17 +216,22 @@ def parse_ao(aofile):
             elif "component" in line and found_source:
 
                 found_component = True
-                ra = lines[i+2].split()[1]
-                dec = lines[i+2].split()[2].strip("\n")
+                for j in [2, 3]:
+                    if "position" in lines[i+j]:  
+                        ra = lines[i+j].split()[1]
+                        dec = lines[i+j].split()[2].strip("\n")
                 logging.debug("Found component at {}, {}".format(ra, dec))
                 flux, freq = [], []
                 alpha = -0.77  # average over N+S sources
 
+                a = b = pa = None
+
                 if "gaussian" in lines[i+1]:
                     # Record the major and minor axes as well as the pa:
-                    _, a, b, pa = lines[i+3].split()
-                else:
-                    a = b = pa = None
+                    for j in [2, 3]:
+                        if "shape" in lines[i+j]:
+                            _, a, b, pa = lines[i+j].split()
+                    
 
 
         
