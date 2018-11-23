@@ -64,7 +64,7 @@ def create_model(ra, dec, imsize, pixsize, outname, gaussians=None, points=None)
 
     if points is not None:
     
-     for point in points:
+        for point in points:
             # (ra, dec, A)
             r, d, A = point
             logging.debug("point at {} {}, {} Jy".format(r, d, A))
