@@ -99,7 +99,7 @@ def main():
         for lobe in lobes.keys():
             sep = pnt.separation(lobes[lobe].sky).value
             if (lobes[lobe].dec+0.5*lobes[lobe].maximum_size > 30. and 
-                sep-0.5*lobes[lobe].maximum_size < radius):
+                sep-0.5*lobes[lobe].maximum_size < args.radius):
             
                 logging.info("Sidelobe above useful GLEAM data - using NS catalogue.")
                 use_ns = True

@@ -63,7 +63,8 @@ def ao(infile, color="green", marker="cross"):
 def main():
         
     description = """
-    Create a ds9 region file from a skymodel .csv file.
+    Create a ds9 region file from a skymodel .csv file or a skymodel .txt
+    file.
     """
 
     ps = argparse.ArgumentParser(description=description)
