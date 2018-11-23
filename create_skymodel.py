@@ -496,7 +496,7 @@ def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1.,
     coords = SkyCoord(ra=catalogue.field("ra"), dec=catalogue.field("dec"), 
                       unit=(u.deg, u.deg))
 
-    logging.info("Maximum brightness source: {:.2f}".format(round(max(catalogue.field("S200"), 2))))
+    # logging.info("Maximum brightness source: {:.2f}".format(round(max(catalogue.field("S200"), 2))))
 
     with open(outname, "w+") as o:
         o.write("skymodel fileformat 1.1\n")
