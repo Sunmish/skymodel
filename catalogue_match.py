@@ -119,29 +119,36 @@ def match(cat1, cat2, separation, exclusion=0.):
     return indices 
     
 
-def write_out(cat1, cat2, indices, outname):
+def write_out(cat1, cat2, indices, outname, nmax=100):
     """Write out a catalogue of `cat2` coordinates with `cat1` appended.
 
     """
 
+    if cat1.flux is not None and len(indices[:, 0]) > nmax:
+        threshold = round(np.sort(cat1.table[cat1.flux][indices[:, 0]])[::-1][nmax-1], 1)
+        cut = cat1.table[cat1.flux][indices[:, 0]] > threshold
+    else:
+        cut = slice(0, len(indices[:, 0]))
+
+            
     columns_to_add = [fits.Column(name=column, format="E",
-                                  array=cat2.table[column][indices[:, 1]])
+                                  array=cat2.table[column][indices[:, 1]][cut])
                       for column in cat2.table.names
                       ]
 
 
     columns_to_add += [fits.Column(name="old_ra", format="E",
-                                   array=cat1.table[cat1.ra_key][indices[:, 0]]),
+                                   array=cat1.table[cat1.ra_key][indices[:, 0]][cut]),
                        fits.Column(name="old_dec", format="E",
-                                   array=cat1.table[cat1.dec_key][indices[:, 0]])
+                                   array=cat1.table[cat1.dec_key][indices[:, 0]][cut])
                        ]
 
     if cat1.flux is not None:
         columns_to_add += [fits.Column(name="flux", format="E",
-                                       array=cat1.table[cat1.flux][indices[:, 0]])]
+                                       array=cat1.table[cat1.flux][indices[:, 0]][cut])]
     if cat1.eflux is not None:
         columns_to_add += [fits.Column(name="eflux", format="E",
-                                       array=cat1.table[cat1.eflux][indices[:, 0]])]
+                                       array=cat1.table[cat1.eflux][indices[:, 0]][cut])]
 
     if not outname.endswith(".fits"):
         outname += ".fits"

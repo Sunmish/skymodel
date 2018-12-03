@@ -48,6 +48,7 @@ def main():
                     help=help_["x"])
     ps.add_argument("-o", "--outname", type=str, default=None, help=help_["o"])
     ps.add_argument("-t", "--threshold", type=float, default=0., help=help_["t"])
+    ps.add_argument("-n", "--nmax", type=int, default=1000)
 
     ps.add_argument("-r", "--ra1", type=str, default="ra", help=help_["r1"])
     ps.add_argument("-d", "--dec1", type=str, default="dec", help=help_["d1"])
@@ -82,7 +83,7 @@ def main():
                        os.path.basename(args.catalogue2).split(".")[0] + ".fits"
         print("INFO: setting output filename to {}".format(args.outname))
 
-    write_out(cat1, cat2, indices, args.outname)
+    write_out(cat1, cat2, indices, args.outname, nmax=args.nmax)
 
 
 if __name__ == "__main__":
