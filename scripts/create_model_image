@@ -145,8 +145,10 @@ def main():
 
         if args.coords is None:
             ra = np.nanmean([r[0] for r in points] + [r[0] for r in gaussians])
-            dec = np.nanmean([d[1] for d in points] + [d[0] for d in gaussians])
+            dec = np.nanmean([d[1] for d in points] + [d[1] for d in gaussians])
             args.coords = (ra, dec)
+
+            print(args.coords)
 
         create_model(ra=args.coords[0], 
                      dec=args.coords[1],

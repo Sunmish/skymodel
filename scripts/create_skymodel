@@ -72,7 +72,7 @@ def main():
                         help=help_["x"], nargs="*")
     parser.add_argument("-C", "--curved", dest="curved", action="store_true",
                         help=help_["C"])
-
+    parser.add_argument("-N", "--use_ns", action="store_true")
     options = parser.parse_args()
 
 
@@ -90,7 +90,7 @@ def main():
     
     use_ns = False
 
-    if len(options.catalogue) == 2:
+    if len(options.catalogue) == 2 and not options.use_ns:
         t, delays, freq, pnt = parse_metafits(options.metafits)
         beam_hdu = get_beam.make_beam_image(t, delays, freq, 
                                             ra=pnt.ra.value,
@@ -103,6 +103,9 @@ def main():
             
                 logging.info("Sidelobe above useful GLEAM data - using NS catalogue.")
                 use_ns = True
+
+    elif options.use_ns:
+        use_ns = True
 
 
 

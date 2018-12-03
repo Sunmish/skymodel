@@ -51,6 +51,9 @@ def create_model(ra, dec, imsize, pixsize, outname, gaussians=None, points=None)
     arr = np.full((imsize, imsize), 0.)
     hdu.data = arr
 
+    logging.debug("RA {}".format(ra))
+    logging.debug("DEC {}".format(dec))
+
     hdu.header["CTYPE1"] = "RA---SIN"
     hdu.header["CTYPE2"] = "DEC--SIN"
     hdu.header["CRVAL1"] = ra
@@ -69,7 +72,7 @@ def create_model(ra, dec, imsize, pixsize, outname, gaussians=None, points=None)
             r, d, A = point
             logging.debug("point at {} {}, {} Jy".format(r, d, A))
             x0, y0 = w.all_world2pix(r, d, 0)
-            hdu.data[int(y0), int(x0)] = A
+            hdu.data[int(y0), int(x0)] += A
 
     if gaussians is not None:
 

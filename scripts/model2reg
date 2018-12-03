@@ -46,7 +46,7 @@ def ao(infile, color="green", marker="cross"):
 
         for source in sources:
             for component in source.components:
-                if component.a == 0.:
+                if component.a == 0. or component.a is None:
                     # Point source:
                     f.write(point_formatter(ra=component.radec.ra.value,
                                             dec=component.radec.dec.value,

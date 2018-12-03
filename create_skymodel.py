@@ -532,3 +532,162 @@ def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1.,
 
 
 
+def create_all_skymodel(table, metafits, outname=None, alpha=None, threshold=1.,
+                        ref_threshold=0., exclude_coords=None, exclusion_zone=1.,
+                        d_limit=(-90, 90), radius=180., nmax=200, ref_key="S154"):
+    """
+    """
+
+    if outname is None:
+        outname = metafits.replace(".metafits", "_skymodel.txt")
+
+    t, delays, freq, pnt = parse_metafits(metafits)
+    freq /= 1.e6
+    ref_freq = float(ref_key.replace("S", ""))
+
+    catalogue = fits.open(table)[1].data
+
+    logging.info("Total sources: {}".format(len(catalogue)))
+
+
+    catalogue = catalogue[np.isfinite(catalogue[ref_key])]
+    logging.info("Sources after nan removal: {}".format(len(catalogue)))
+
+    catalogue = catalogue[catalogue[ref_key] > ref_threshold]
+    logging.info("Source after reference flux threshold: {}".format(len(catalogue)))
+
+    catalogue = catalogue[np.where((d_limit[0] <= catalogue["dec"] &
+                                    catalogue["dec"] <= d_limit[1]))[0]]
+    logging.info("Source after declination cut: {}".format(len(catalogue)))
+
+    coords = SkyCoord(ra=catalogue["ra"], dec=catalogue["dec"], 
+                      unit=(u.deg, u.deg))
+    seps = pn.separation(coords).value
+    catalogue = catalogue[seps < radius]
+    logging.info("Sources after radial cut: {}".format(len(catalogue)))
+
+    coords = SkyCoord(ra=catalogue["ra"], dec=catalogue["dec"], 
+                      unit=(u.deg, u.deg))
+    at_flux = np.full_like(catalogue[ref_key], np.nan)
+    at_flux_atten = np.full_like(catalogue[ref_key], np.nan)
+
+    stokesI = beam_value(catalogue["ra"], catalogue["dec"], t, delays, 
+                         freq*1.e6, return_I=True)
+
+    if alpha is None:
+        alpha = np.nanmean(catalogue["beta_p"])
+
+    for i in range(len(catalogue)):
+
+        row = catalogue[i]
+
+        if not np.isnan(row["alpha_c"]):
+
+            at_flux[i] = fitting.cpowerlaw(freq,
+                                           a=row["alpha_c"],
+                                           b=row["beta_c"],
+                                           c=row["gamma_c"])/1000.
+  
+        elif not np.isnan(row["alpha_p"]):
+
+            at_flux[i] = fitting.powerlaw(freq,
+                                          a=row["alpha_p"],
+                                          b=row["beta_p"])/1000.
+  
+        elif alpha is not None:
+
+            at_flux[i] = (row[ref_key]*(freq/ref_freq)**alpha)
+
+        # Attenuate by the primary beam
+        # at_flux_atten[i] = at_flux[i]*stokesI[i]
+
+    at_flux = at_flux[np.isfinite(at_flux)]
+    catalogue = catalogue[np.isfinite(at_flux)]
+    logging.info("Sources after estimating flux density: {}".format(len(at_flux)))
+
+    atten_flux = at_flux*stokesI
+    atten_flux = atten_flux[np.isfinite(atten_flux)]
+    at_flux = at_flux[np.isfinite(atten_flux)]
+    catalogue = catalogue[np.isfinite(atten_flux)]
+
+    atten_flux = atten_flux[atten_flux > threshold]
+    at_flux = at_flux[atten_flux > threshold]
+    catalogue = catalogue[atten_flux > threshold]
+    logging.info("Sources after attenuating by the primary beam: {}".format(len(at_flux)))
+
+    if len(catalogue) > nmax:
+        logging.info("More than nmax={0} sources in catalogue - trimming.".format(nmax))
+        a_cut = round(np.sort(atten_flux)[::-1][nmax-1], 1)
+        
+        atten_flux = atten_flux[atten_flux > a_cut]
+        at_flux = at_flux[at_flux > a_cut]
+        catalogue = catalogue[atten_flux > a_cut]
+
+        logging.info("Sources after new flux treshold of {0} Jy: {1}".format(
+                     a_cut, len(catalogue)))
+
+    coords = SkyCoord(ra=catalogue["ra"], dec=catalogue["dec"], 
+                      unit=(u.deg, u.deg))
+
+    for i in range(len(catalogue)):
+
+        if exclude_coords is not None:
+
+            excl_seps = coords[i].separation(exclude_coords)
+            if (excl_seps.value < exclusion_zone/60.).any():
+                logging.debug("{} within exclusion zone.".format(i))
+                atten_flux[i] = np.nan
+                continue
+
+            else:
+                logging.debug("{} not within exclude coords".format(i))
+
+    atten_flux = atten_flux[np.isfinite(atten_flux)]
+    at_flux = at_flux[np.isfinite(atten_flux)]
+    catalogue = catalogue[np.isfinite(atten_flux)]
+    logging.info("Sources after excluding sources: {}".format(len(catalogue)))
+    
+
+    coords = SkyCoord(ra=catalogue["ra"], dec=catalogue["dec"], 
+                      unit=(u.deg, u.deg))
+
+    with open(outname, "w+") as o:
+        o.write("skymodel fileformat 1.1\n")
+
+        for i in range(len(catalogue)):
+
+            r, d = coords[i].to_string("hmddms").split()
+
+            flux = []
+            for f in FREQ_LIST:
+                if not np.isnan(catalogue[i]["alpha_c"]):
+                    flux.append(fitting.cpowerlaw(f, 
+                                                  a=catalogue[i]["alpha_c"],
+                                                  b=catalogue[i]["beta_c"],
+                                                  c=catalogue[i]["gamma_c"])/1000.)
+                elif not np.isnan(catalogue[i]["alpha_p"]):
+                    flux.append(fitting.powerlaw(f,
+                                                 a=catalogue[i]["alpha_p"],
+                                                 b=catalogue[i]["beta_p"])/1000.)
+                else:
+                    flux.append(catalogue[ref_key][i]*(f/ref_freq)**alpha)
+
+            if not np.isnan(catalogue["major"][i]):
+
+                entry_format = gaussian_formatter(name=catalogue["name"][i],
+                                                  ra=r,
+                                                  dec=d,
+                                                  major=catalogue["major"][i]*3600.,
+                                                  minor=catalogue["minor"][i]*3600.,
+                                                  pa=catalogue["pa"][i],
+                                                  freq=FREQ_LIST,
+                                                  flux=flux)
+            else:
+
+                entry_format = point_formatter(name=catalogue["name"][i],
+                                               ra=r,
+                                               dec=d,
+                                               freq=FREQ_LIST,
+                                               flux=flux)
+
+            o.write(entry_format)

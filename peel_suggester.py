@@ -117,6 +117,7 @@ def autoprocess(aofile, metafits, threshold=25., radius=0., alpha=-0.7, verbose=
                                                    alpha=-0.7)
 
                 sep = pnt.separation(source.components[0].radec).value
+                print(sep)
 
                 writeout += "{:<22}: {:.2f} Jy\n".format(source.name, 
                                                          apparent_brightness)
