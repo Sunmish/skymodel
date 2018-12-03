@@ -49,4 +49,6 @@ def main():
                       correction_image=correction_map,
                       outname=args.outname)
 
-    
+
+if __name__ == "__main__":
+    main()
