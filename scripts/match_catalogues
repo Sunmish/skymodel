@@ -1,0 +1,92 @@
+#! /usr/bin/env python
+
+from __future__ import print_function
+
+import os
+
+from argparse import ArgumentParser
+
+from skymodel.catalogue_match import Catalogue, match, write_out
+from skymodel.create_skymodel import get_exclusion_coords
+
+def main():
+    """
+    """
+
+    description = """
+    Match one catalogue to another. Coordinates from the first catalogue are
+    then stored as 'old_ra', 'old_dec', and the second catalogue's coordinates
+    are considered the true coordinates.
+    """
+
+    help_ = {"cat1": "The first catalogue. .vot or .fits format.",
+             "cat2": "The second catalogue. .vot or .fits format.",
+             "s": "Minimum angular separation required for match. [Default None]",
+             "z": "Exclusion zone around sources. [Default 0 deg]",
+             "x": "AO-style file with sources to exclude from output catalogue.",
+             "r1": "RA key for catalogue 1. [Default 'ra']",
+             "d1": "DEC key for catalogue 1. [Default 'dec']",
+             "r2": "RA key for catalogue 2. [Default 'ra']",
+             "d2": "DEC key for catalogue 2. [Default 'dec']",
+             "o": "Output catalogue name.",
+             "F": "Flux density column name for catalogue 1. [Default 'int_flux']",
+             "E": "Flux density error column name for catalogue 1. "
+                  "[Default 'err_int_flux']",
+             "t": "Threshold."
+             }
+
+    ps = ArgumentParser(description=description)
+
+    ps.add_argument("catalogue1", type=str)
+    ps.add_argument("catalogue2", type=str)
+
+    ps.add_argument("-s", "--separation", type=float, default=None,
+                    help=help_["s"])
+    ps.add_argument("-z", "--exclusion_zone", "--zone", dest="zone", type=float,
+                    default=0., help=help_["z"])
+    ps.add_argument("-x", "--exclude", type=str, default=None, nargs="*",
+                    help=help_["x"])
+    ps.add_argument("-o", "--outname", type=str, default=None, help=help_["o"])
+    ps.add_argument("-t", "--threshold", type=float, default=0., help=help_["t"])
+
+    ps.add_argument("-r", "--ra1", type=str, default="ra", help=help_["r1"])
+    ps.add_argument("-d", "--dec1", type=str, default="dec", help=help_["d1"])
+    ps.add_argument("-R", "--ra2", type=str, default="ra", help=help_["r2"])
+    ps.add_argument("-D", "--dec2", type=str, default="dec", help=help_["d2"])
+    ps.add_argument("-F", "--flux", type=str, default="int_flux", help=help_["F"])
+    ps.add_argument("-E", "--eflux", type=str, default="err_int_flux", 
+                    help=help_["E"])
+
+    args = ps.parse_args()
+
+
+    cat1 = Catalogue(args.catalogue1, ra_key=args.ra1, dec_key=args.dec1, flux=args.flux, eflux=args.eflux)
+    cat2 = Catalogue(args.catalogue2, ra_key=args.ra2, dec_key=args.dec2)
+
+    if args.exclude is not None:
+        
+        exclusion_coords = get_exclusion_coords(args.exclude)
+        cat1.exclude(exclusion_coords, 10./60.)  # larger exclusion
+        cat2.exclude(exclusion_coords, 10./60.)
+
+    cat1.clip(args.threshold)
+
+    if args.separation is None:
+        args.separation = 1.e30
+
+    indices = match(cat1, cat2, args.separation, args.zone)
+
+    if args.outname is None:
+
+        args.outname = os.path.basename(args.catalogue1).split(".")[0] + "_" + \
+                       os.path.basename(args.catalogue2).split(".")[0] + ".fits"
+        print("INFO: setting output filename to {}".format(args.outname))
+
+    write_out(cat1, cat2, indices, args.outname)
+
+
+if __name__ == "__main__":
+    main()
+
+
+

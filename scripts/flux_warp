@@ -1,0 +1,52 @@
+#! /usr/bin/env python
+
+from argparse import ArgumentParser
+
+from skymodel.fluxmatch import fluxscale, correction_factor_map, apply_corrections
+
+def main():
+    """
+    """
+
+    ps = ArgumentParser()
+
+    ps.add_argument("model_table")
+    ps.add_argument("image")
+    ps.add_argument("-f", "--freq", type=float)
+    ps.add_argument("-o", "--outname", type=str, default=None)
+    ps.add_argument("-t", "--threshold", type=float, default=1.)
+    ps.add_argument("-r", "--ref_freq", type=float, default=154.)
+
+
+    args = ps.parse_args()
+
+    if args.freq is None:
+        hdr = fits.getheader(args.image)
+        if "FREQ" in hdr:
+            args.freq = hdr["FREQ"]/1.e6
+        elif "CRVAL3" in hdr:
+            args.freq = hdr["CRVAL3"]/1.e6
+        else:
+            raise ValueError("Unable to get frequency information!")
+
+    ratios, indices = fluxscale(args.model_table, 
+                                freq=args.freq,
+                                treshold=args.threshold,
+                                ref_freq=args.ref_freq,
+                                flux_key="flux")
+
+    correction_map = correction_factor_map(image=args.image,
+                                           x=args.model_table[indices],
+                                           y=args.model_table[indices],
+                                           z=ratios,
+                                           )
+
+    if args.outname is None:
+        args.outname = args.image.replace(".fits", "_scaled.fits")
+        logging.info("Setting output filename to {}".format(args.outname))
+
+    apply_corrections(image=args.image,
+                      correction_image=correction_map,
+                      outname=args.outname)
+
+    
