@@ -2,7 +2,13 @@
 
 from argparse import ArgumentParser
 
-from skymodel.fluxmatch import fluxscale, correction_factor_map, apply_corrections
+from astropy.io import fits
+
+from skymodel.fluxmatch import fluxscale, correction_factor_map, apply_corrections, plot, temp_plot
+
+import logging
+logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
+                    level=logging.INFO)
 
 def main():
     """
@@ -16,6 +22,8 @@ def main():
     ps.add_argument("-o", "--outname", type=str, default=None)
     ps.add_argument("-t", "--threshold", type=float, default=1.)
     ps.add_argument("-r", "--ref_freq", type=float, default=154.)
+    ps.add_argument("-n", "--nmax", type=int, default=100)
+    ps.add_argument("-p", "--plot", action="store_true")
 
 
     args = ps.parse_args()
@@ -29,25 +37,42 @@ def main():
         else:
             raise ValueError("Unable to get frequency information!")
 
-    ratios, indices = fluxscale(args.model_table, 
-                                freq=args.freq,
-                                treshold=args.threshold,
-                                ref_freq=args.ref_freq,
-                                flux_key="flux")
+    with fits.open(args.model_table) as f:
 
-    correction_map = correction_factor_map(image=args.image,
-                                           x=args.model_table[indices],
-                                           y=args.model_table[indices],
-                                           z=ratios,
-                                           )
+        table = f[1].data
 
-    if args.outname is None:
-        args.outname = args.image.replace(".fits", "_scaled.fits")
-        logging.info("Setting output filename to {}".format(args.outname))
+        ratios, indices = fluxscale(table=table, 
+                                    freq=args.freq,
+                                    threshold=args.threshold,
+                                    ref_freq=args.ref_freq,
+                                    flux_key="flux",
+                                    nsrc_max=args.nmax)
 
-    apply_corrections(image=args.image,
-                      correction_image=correction_map,
-                      outname=args.outname)
+        correction_map = correction_factor_map(image=args.image,
+                                               pra=table["ra"][indices],
+                                               pdec=table["dec"][indices],
+                                               ratios=ratios,
+                                               )
+
+        if args.outname is None:
+            args.outname = args.image.replace(".fits", "_scaled.fits")
+            logging.info("Setting output filename to {}".format(args.outname))
+
+        apply_corrections(image=args.image,
+                          correction_image=correction_map,
+                          outname=args.outname)
+
+        if args.plot:
+
+            plot(correction_map, 
+                 pra=table["ra"][indices],
+                 pdec=table["dec"][indices],
+                 ratios=ratios
+                 )
+
+            temp_plot(args.image, table["ra"][indices], table["dec"][indices])
+
+
 
 
 if __name__ == "__main__":
