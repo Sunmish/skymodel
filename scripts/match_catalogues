@@ -9,6 +9,11 @@ from argparse import ArgumentParser
 from skymodel.catalogue_match import Catalogue, match, write_out
 from skymodel.create_skymodel import get_exclusion_coords
 
+import logging
+logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
+                    level=logging.DEBUG)
+
+
 def main():
     """
     """
@@ -61,21 +66,35 @@ def main():
     args = ps.parse_args()
 
 
+    logging.debug("Opening cat1 {}".format(args.catalogue1))
     cat1 = Catalogue(args.catalogue1, ra_key=args.ra1, dec_key=args.dec1, flux=args.flux, eflux=args.eflux)
+    
+    logging.debug("Opening cat2 {}".format(args.catalogue2))
     cat2 = Catalogue(args.catalogue2, ra_key=args.ra2, dec_key=args.dec2)
 
     if args.exclude is not None:
         
+        logging.debug("Getting exclusion coords...")
         exclusion_coords = get_exclusion_coords(args.exclude)
-        cat1.exclude(exclusion_coords, 10./60.)  # larger exclusion
-        cat2.exclude(exclusion_coords, 10./60.)
 
+        logging.debug("Excluding from cat1...")
+        cat1.exclude(exclusion_coords, 10./60.)  # larger exclusion
+        
+        # Do not need to worry about cat2.
+        # logging.debug("Excluding from cat2...")
+        # cat2.exclude(exclusion_coords, 10./60.)
+
+
+    logging.debug("Clipping cat1...")
     cat1.clip(args.threshold)
 
     if args.separation is None:
         args.separation = 1.e30
 
+    logging.debug("Matching catalogues...")
     indices = match(cat1, cat2, args.separation, args.zone)
+
+    logging.info("Total {} matches between {} and {}".format(len(indices), cat1.name, cat2.name))
 
     if args.outname is None:
 

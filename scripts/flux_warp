@@ -70,9 +70,6 @@ def main():
                  ratios=ratios
                  )
 
-            temp_plot(args.image, table["ra"][indices], table["dec"][indices])
-
-
 
 
 if __name__ == "__main__":

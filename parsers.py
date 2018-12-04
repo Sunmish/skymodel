@@ -9,7 +9,7 @@ from astropy import units as u
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.INFO)
+                    level=logging.DEBUG)
 
 from . import fitting
 from .get_beam import beam_value
