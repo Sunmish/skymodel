@@ -18,14 +18,20 @@ def main():
                       "have more than 1 flux density measurement. [Default -0.7]",
              "r": "For sources to be suggested to be peeled, they must lie outside "
                   "of this radius. [Default 0.0 deg]"
+             "T": "",
+             "R": ""
             }
 
     ps.add_argument("-f", "--aofile", "--models", "--skymodel", type=str,
                     help=help_["f"], dest="aofile", default=None, nargs="*")
     ps.add_argument("-m", "--metafits", type=str, help=help_["m"], default=None)
-    ps.add_argument("-t", "--threshold", type=float, help=help_["t"], 
+    ps.add_argument("-t", "--peel_threshold", type=float, help=help_["t"], 
                     default=25.)
-    ps.add_argument("-r", "--radius", type=float, help=help_["r"], default=0.)
+    ps.add_argument("-T", "--subtract_threshold", type=float, help=help_["T"],
+                    default=10.)
+    ps.add_argument("-r", "--peel_radius", type=float, help=help_["r"], default=0.)
+    ps.add_argument("-R", "--subtract_radius", type=float, default=0.,
+                    help=help_["R"])
     ps.add_argument("-a", "--alpha", "--spectral_index", dest="alpha",
                     help=help_["alpha"], default=-0.7, type=float)
     ps.add_argument("-v", "--verbose", action="store_true")
@@ -40,19 +46,22 @@ def main():
 
     peel_sources = autoprocess(aofile=args.aofile, 
                                metafits=args.metafits, 
-                               threshold=args.threshold, 
-                               radius=args.radius, 
+                               peel_threshold=args.peel_threshold, 
+                               peel_radius=args.peel_radius,
+                               subtract_threshold=args.subtract_threshold,
+                               subtract_radius=args.subtract_radius, 
                                alpha=args.alpha,
                                verbose=args.verbose,
                                duplicates=args.duplicates)
 
     if peel_sources is not None:
         for i in range(len(peel_sources)):
-            print("{} {} {} {} {}".format(peel_sources[:, 1][i], 
-                                          peel_sources[:, 2][i], 
-                                          peel_sources[:, 0][i],
-                                          peel_sources[:, 3][i],
-                                          peel_sources[:, 4][i]))
+            print("{} {} {} {} {} {}".format(peel_sources[:, 1][i], 
+                                             peel_sources[:, 2][i], 
+                                             peel_sources[:, 0][i],
+                                             peel_sources[:, 3][i],
+                                             peel_sources[:, 4][i],
+                                             peel_sources[:, 5][i]))
 
 
 if __name__ == "__main__":

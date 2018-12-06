@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 
 from astropy.io import fits
 
-from skymodel.fluxmatch import fluxscale, correction_factor_map, apply_corrections, plot, temp_plot
+from skymodel.fluxmatch import fluxscale, correction_factor_map, apply_corrections, plot
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
@@ -24,11 +24,14 @@ def main():
     ps.add_argument("-r", "--ref_freq", type=float, default=154.)
     ps.add_argument("-n", "--nmax", type=int, default=100)
     ps.add_argument("-p", "--plot", action="store_true")
+    ps.add_argument("-s", "--smooth", type=int, default=0)
 
 
     args = ps.parse_args()
 
+    no_freq = False
     if args.freq is None:
+        no_freq = True
         hdr = fits.getheader(args.image)
         if "FREQ" in hdr:
             args.freq = hdr["FREQ"]/1.e6
@@ -52,7 +55,7 @@ def main():
                                                pra=table["ra"][indices],
                                                pdec=table["dec"][indices],
                                                ratios=ratios,
-                                               )
+                                               smooth=args.smooth)
 
         if args.outname is None:
             args.outname = args.image.replace(".fits", "_scaled.fits")
@@ -70,6 +73,10 @@ def main():
                  ratios=ratios
                  )
 
+    if no_freq:
+        with fits.open(args.outname, mode="update") as f:
+            f[0].header["FREQ"] = args.freq*1.e6
+            f.flush()
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ from .get_beam import atten_source
 from .parsers import parse_ao, parse_metafits
 
 
-def slice_ao(source, aofile):
+def slice_ao(source, aofile, method="peel"):
     """Slice source out of aofile.
 
     Parameters
@@ -29,7 +29,7 @@ def slice_ao(source, aofile):
 
     """
 
-    outname = "peel-"+source.name.split()[0]+".txt"  # consistent with prep_model
+    outname = method+"-"+source.name.split()[0]+".txt"  # consistent with prep_model
 
     f = open(aofile, "r")
     with open(outname, "w+") as g:
@@ -68,8 +68,9 @@ def slice_ao(source, aofile):
     return outname
 
 
-def autoprocess(aofile, metafits, threshold=25., radius=0., alpha=-0.7, verbose=False,
-                duplicates=True):
+def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0., 
+                subtract_threshold=10., subtract_radius=0.,alpha=-0.7, 
+                verbose=False, duplicates=True):
     """Attenuate models in an `aofile`.
 
     Additionally, write out individual models, if attenuated brightness is
@@ -103,7 +104,7 @@ def autoprocess(aofile, metafits, threshold=25., radius=0., alpha=-0.7, verbose=
     writeout = ""
 
     i = 0
-    names, models, abrights, ra, dec = [], [], [], [], []
+    names, models, abrights, ra, dec, method = [], [], [], [], [], []
 
     for ao in aofile:
         sources = parse_ao(ao)
@@ -121,14 +122,26 @@ def autoprocess(aofile, metafits, threshold=25., radius=0., alpha=-0.7, verbose=
                 writeout += "{:<22}: {:.2f} Jy\n".format(source.name, 
                                                          apparent_brightness)
                 
-                if (apparent_brightness > threshold) and (sep > radius):
+                if (apparent_brightness > peel_threshold) and (sep > peel_radius):
                     # Slice out model to use in peeling later:
-                    model_name = slice_ao(source, ao)
+                    model_name = slice_ao(source, ao, method="peel")
                     names.append(source.name)
                     models.append(model_name)
                     abrights.append(apparent_brightness)
                     ra.append(source.components[0].radec.ra.value)
                     dec.append(source.components[0].radec.dec.value)
+                    method.append("peel")
+                elif (apparent_brightness > subtract_threshold) and \
+                    (sep > subtract_radius):
+                    # Slice out model to use in subtracting later:
+                    model_name = slice_ao(source, ao, method="subtract")
+                    names.append(source.name)
+                    models.append(model_name)
+                    abrights.append(apparent_brightness)
+                    ra.append(source.components[0].radec.ra.value)
+                    dec.append(source.components[0].radec.dec.value)
+                    method.append("subtract")
+
             else:
                 logging.warn("{} ingnored as it has already been added".format(source.name))
 
@@ -141,7 +154,8 @@ def autoprocess(aofile, metafits, threshold=25., radius=0., alpha=-0.7, verbose=
                          np.asarray(names),
                          np.asarray(models),
                          np.asarray(ra),
-                         np.asarray(dec)]).T
+                         np.asarray(dec)],
+                         np.asarray(method)).T
         peel = peel[peel[:, 0].astype("f").argsort()[::-1]]  # brightest first
     except Exception:
         return None

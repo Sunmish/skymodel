@@ -37,6 +37,7 @@ def nsrc_cut(table, flux_key, nsrc_max):
     if len(table) > nsrc_max:
         threshold = round(np.sort(table[flux_key])[::-1][nsrc_max-1], 1)
         table = table[table[flux_key] > threshold]
+        logging.info("New threshold set to {:.1f} Jy".format(threshold))
 
     return table
 
@@ -92,7 +93,8 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
 
 
 def correction_factor_map(image, pra, pdec, ratios, interpolation="linear",
-                          memfrac=0.5, absmem="all", outname=None): 
+                          memfrac=0.5, absmem="all", outname=None,
+                          smooth=0): 
     """
     """
 
@@ -104,7 +106,7 @@ def correction_factor_map(image, pra, pdec, ratios, interpolation="linear",
         y=pdec,
         z=ratios,
         interpolation=interpolation,
-        smooth=0,
+        smooth=smooth,
         world_coords=True,
         memfrac=memfrac,
         absmem=absmem,
@@ -135,22 +137,66 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     """
     """
 
-    size = (10, 8)
-    axes = [0.15, 0.1, 0.83, 0.78]
-    cbax = [0.15, 0.96, 0.83, 0.03]
+    
+    
 
-    wcs = WCS(fits.getheader(correction_image)).celestial
 
+    size = (10, 10)
+    axes = [0.15, 0.1, 0.83, 0.8]
+    cbax = [0.15, 0.975, 0.83, 0.02]
     fig = plt.figure(figsize=size)
-    ax1 = plt.subplot(111, projection=wcs)
-    ax1.set_position(axes)
-
-    ax1.scatter(pra, pdec, s=150, marker="*", c="green")
 
     norm = mpl.colors.Normalize(vmin=min(ratios), vmax=max(ratios))
 
-    ax1.imshow(np.squeeze(fits.getdata(correction_image)), cmap=cmap, norm=norm,
-               origin="lower")
+
+    try:
+        import aplpy
+        from matplotlib import rc
+
+
+        rc('font', **{'family':'serif', 'serif':['Times'], 'weight':'medium'})
+        rc('text', usetex=True)
+        params = {"text.latex.preamble": [r"\usepackage{siunitx}",
+                  r"\sisetup{detect-family = true}"]}
+        plt.rcParams.update(params)
+
+        # By default ticks are all out - they shouldn't be!
+        mpl.rcParams['xtick.direction'] = 'in'
+        mpl.rcParams['ytick.direction'] = 'in'
+
+        apl = aplpy.FITSFigure(correction_image, fig, axes)
+        apl.show_colorscale(vmin=norm.vmin, vmax=norm.vmax, cmap=cmap)
+
+        apl.ticks.set_length(8)
+        apl.ticks.set_linewidth(1)
+        apl.ticks.set_minor_frequency(10)
+        apl.tick_labels.set_font(size=22.)
+
+        apl.axis_labels.set_font(size=24.)
+        apl.axis_labels.set_xpad(10)
+        apl.axis_labels.set_ypad(5)
+    
+        apl.axis_labels.set_xtext(r"R.~A. (J2000)")
+        apl.axis_labels.set_ytext(r"Decl. (J2000)")
+
+        apl.show_markers(pra, pdec, c=ratios, edgecolors="magenta", s=100,
+                         marker="o")
+
+    except Exception:
+
+        wcs = WCS(fits.getheader(correction_image)).celestial
+
+        apl = plt.axes(axes)
+        apl.imshow(np.squeeze(fits.getdata(correction_image)), cmap=cmap, norm=norm,
+                   origin="lower")
+    
+        x, y = wcs.all_world2pix(pra, pdec, 0)
+
+        apl.scatter(x, y, c=ratios, edgecolors="magenta", s=100, marker="o", 
+                    norm=norm, cmap=cmap)
+
+        apl.axes.get_xaxis().set_ticks([])
+        apl.axes.get_yaxis().set_ticks([])
 
 
     colorbar_axis = fig.add_axes(cbax)
@@ -171,7 +217,7 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     if outname is None:
         outname = correction_image.replace(".fits", ".eps")
 
-    fig.savefig(outname, dpi=72)
+    fig.savefig(outname, dpi=72, bbox_inches="tight")
 
 
 
