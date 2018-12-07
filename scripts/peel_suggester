@@ -17,9 +17,9 @@ def main():
              "alpha": "Spectral index to assume if components/sources do not "
                       "have more than 1 flux density measurement. [Default -0.7]",
              "r": "For sources to be suggested to be peeled, they must lie outside "
-                  "of this radius. [Default 0.0 deg]"
+                  "of this radius. [Default 0.0 deg]",
              "T": "",
-             "R": ""
+             "R": "",
             }
 
     ps.add_argument("-f", "--aofile", "--models", "--skymodel", type=str,

@@ -27,19 +27,25 @@ def sigma_clip(ratios, indices, sigma=2.):
 
     new_indices = np.where(abs(ratios-avg) < sigma*std)[0]
 
+
     return ratios[new_indices], indices[new_indices]
 
 
-def nsrc_cut(table, flux_key, nsrc_max):
+def nsrc_cut(table, flux_key, indices, nsrc_max, ratios):
     """
     """
 
-    if len(table) > nsrc_max:
-        threshold = round(np.sort(table[flux_key])[::-1][nsrc_max-1], 1)
-        table = table[table[flux_key] > threshold]
+
+    cflux = table[indices][flux_key]*ratios
+
+
+    if len(cflux) > nsrc_max:
+        threshold = round(np.sort(cflux)[::-1][nsrc_max-1], 1)
+        indices = indices[cflux > threshold]
+        ratios = ratios[cflux > threshold]
         logging.info("New threshold set to {:.1f} Jy".format(threshold))
 
-    return table
+    return indices, ratios
 
 
 
@@ -85,8 +91,11 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
 
     logging.info("Number of calibrators: {}".format(len(predicted_flux)))
 
-    # predicted_ratios, predicted_indices = sigma_clip(ratios, indices)
-    predicted_ratios, predicted_indices = ratios, indices
+    predicted_ratios, predicted_indices = sigma_clip(np.asarray(ratios), np.asarray(indices))
+    # predicted_ratios, predicted_indices = np.asarray(ratios), np.asarray(indices)
+# 
+    predicted_indices, predicted_ratios = nsrc_cut(table, flux_key, predicted_indices, 
+                                 nsrc_max, predicted_ratios)
 
     return np.asarray(predicted_ratios), np.asarray(predicted_indices)
 
