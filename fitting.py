@@ -126,7 +126,7 @@ def fit(f, x, y, yerr=None, params=None, return_pcov=False):
                            absolute_sigma=True, 
                            method="lm", 
                            sigma=yerr,
-                           maxfev=100000)  # > the default of 800
+                           maxfev=100000)  # > the default of 800(600?)
     perr = np.sqrt(np.diag(pcov))
 
     if return_pcov:
