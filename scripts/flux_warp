@@ -37,6 +37,8 @@ def main():
             args.freq = hdr["FREQ"]/1.e6
         elif "CRVAL3" in hdr:
             args.freq = hdr["CRVAL3"]/1.e6
+        elif "CENTCHAN" in hdr:
+            args.freq = 1.28 * float(hdr["CENTCHAN"])
         else:
             raise ValueError("Unable to get frequency information!")
 
