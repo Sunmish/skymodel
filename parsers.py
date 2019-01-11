@@ -255,3 +255,35 @@ def parse_metafits(metafits):
 
 
     return t, delays, freq, pnt
+
+
+def parse_obslist(obslist, selection="all"):
+    """Read in OBS ID list.
+
+    This may be simply a list of OBS IDs, and optionally a list of 
+    tiles to flag per snapshot.
+    """
+
+    obs_ids, obs_flags = [], []
+
+    with open(obslist, "r") as obs:
+
+        lines = obs.readlines()
+        for l in range(len(lines)):
+            if (selection == "all" or l+1 in selection) and "#" not in lines[l]:
+
+                line = lines[l]
+                bits = line.replace("\n", "").split(" ")
+                if len(bits) == 1:  # No flag tiles on this line.
+                    flags = ""
+                elif len(bits) == 2:
+                    flags = bits[1]
+                else:
+                    logging.warning("OBS ID file line has too many items? \n" 
+                                    "{0}".format(line))
+                    flags = bits[1]
+
+                obs_ids.append(bits[0])
+                obs_flags.append(flags)
+
+    return obs_ids, obs_flags

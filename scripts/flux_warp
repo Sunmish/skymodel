@@ -25,6 +25,7 @@ def main():
     ps.add_argument("-n", "--nmax", type=int, default=100)
     ps.add_argument("-p", "--plot", action="store_true")
     ps.add_argument("-s", "--smooth", type=int, default=0)
+    ps.add_argument("-F", "--flux_key", default="flux")
 
 
     args = ps.parse_args()
@@ -50,8 +51,9 @@ def main():
                                     freq=args.freq,
                                     threshold=args.threshold,
                                     ref_freq=args.ref_freq,
-                                    flux_key="flux",
-                                    nsrc_max=args.nmax)
+                                    flux_key=args.flux_key,
+                                    nsrc_max=args.nmax,
+                                    histnamebase=args.outname)
 
         correction_map = correction_factor_map(image=args.image,
                                                pra=table["ra"][indices],

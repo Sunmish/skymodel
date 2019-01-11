@@ -145,7 +145,9 @@ def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0.,
             else:
                 logging.warn("{} ingnored as it has already been added".format(source.name))
 
+
     logging.info("Sources and their apparent brightnesses:")
+
     if verbose:
         print(writeout)
 
@@ -154,10 +156,11 @@ def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0.,
                          np.asarray(names),
                          np.asarray(models),
                          np.asarray(ra),
-                         np.asarray(dec)],
-                         np.asarray(method)).T
+                         np.asarray(dec),
+                         np.asarray(method)]).T
         peel = peel[peel[:, 0].astype("f").argsort()[::-1]]  # brightest first
     except Exception:
+        # raise
         return None
     else:
         return peel

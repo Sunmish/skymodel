@@ -11,11 +11,46 @@ from skymodel.fitting import cpowerlaw, powerlaw
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.INFO)
+                    level=logging.DEBUG)
 
 import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
+
+from matplotlib import rc
+# Without this the default font will have issues with MNRAS (being type 3)
+rc('font', **{'family':'serif', 'serif':['Times'], 'weight':'medium'})
+rc('text', usetex=True)
+params = {"text.latex.preamble": [r"\usepackage{siunitx}", \
+          r"\sisetup{detect-family = true}"]}
+plt.rcParams.update(params)
+
+mpl.rcParams['xtick.direction'] = 'in'
+mpl.rcParams['ytick.direction'] = 'in'
+
+
+def hist_plot(ratios, outname, color="black"):
+    """
+    """
+
+    font_labels = 24.
+    font_ticks = 20.
+    size = (10, 8)
+    axes = [0.15, 0.1, 0.81, 0.86]
+
+    plt.close("all")
+
+    fig = plt.figure(figsize=size)
+    ax1 = plt.axes(axes)
+
+    ax1.hist(ratios, 20, color=color, histtype="step")
+    ax1.set_xlabel("Correction factor", fontsize=font_labels)
+    ax1.set_ylabel("Number", fontsize=font_labels)
+    ax1.tick_params(axis="both", which="both", labelsize=font_ticks)
+
+    plt.savefig(outname)
+
+    plt.close("all")
 
 
 def sigma_clip(ratios, indices, sigma=2.):
@@ -50,7 +85,7 @@ def nsrc_cut(table, flux_key, indices, nsrc_max, ratios):
 
 
 def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
-              flux_key="flux", nsrc_max=100):
+              flux_key="flux", nsrc_max=100, histnamebase="table"):
     """
     """
 
@@ -89,14 +124,30 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
             ratios.append(f/table[flux_key][i])
 
 
-    logging.info("Number of calibrators: {}".format(len(predicted_flux)))
 
+
+    # logging.info("Number of calibrators prior to clipping: {}".format(len(predicted_flux)))
+
+
+    valid = np.isfinite(ratios)
+    ratios = np.asarray(ratios)[valid]
+    indices = np.asarray(indices)[valid]
+
+
+    logging.info("Number of calibrators prior to clipping: {}".format(len(indices)))
+
+    hist_plot(ratios, histnamebase+"_hist1.eps", color="dodgerblue")
+    
     predicted_ratios, predicted_indices = sigma_clip(np.asarray(ratios), np.asarray(indices))
-    # predicted_ratios, predicted_indices = np.asarray(ratios), np.asarray(indices)
-# 
+    
+    logging.info("Number of calibrators after clipping: {}".format(len(predicted_indices)))
+
     predicted_indices, predicted_ratios = nsrc_cut(table, flux_key, predicted_indices, 
                                  nsrc_max, predicted_ratios)
 
+    hist_plot(predicted_ratios, histnamebase+"_hist2.eps", color="red")
+
+    logging.info("Number of calibrators: {}".format(len(predicted_indices)))
     return np.asarray(predicted_ratios), np.asarray(predicted_indices)
 
 
@@ -109,6 +160,7 @@ def correction_factor_map(image, pra, pdec, ratios, interpolation="linear",
 
     if outname is None:
         outname = image.replace(".fits", "_scale_factors.fits")
+
 
     rbf(image=image,
         x=pra,
