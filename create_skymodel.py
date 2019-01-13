@@ -106,7 +106,8 @@ def get_exclusion_coords(skymodel):
 def create_model(catalogue, metafits, outname,  \
                  threshold=1., ratio=1.1, radius=120., nmax=500, plot=False, \
                  exclude_coords=None, exclusion_zone=5., \
-                 return_catalogue=False, weight=False, curved=True):
+                 return_catalogue=False, weight=False, curved=True,
+                 max_flux=500):
     """Create a GLEAM skymodel.
 
     Parameters
@@ -244,6 +245,10 @@ def create_model(catalogue, metafits, outname,  \
                     raise RuntimeError
                 elif abs(perr[1]/popt[1]) > 1:  # Poor fit?
                     raise RuntimeError
+                elif model(float(freq), *popt) > max_flux:
+                    raise RuntimeError
+
+
 
             except RuntimeError:
                 GLEAM["Fintwide"][i] = 0.
@@ -342,7 +347,7 @@ def create_model(catalogue, metafits, outname,  \
 def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1., 
                     s200_cut=1., s1400_cut=0.1, s843_cut=0.1, s150_cut=0.1,
                     exclude_coords=None, exclusion_zone=1., d_limit=(-90, 90),
-                    radius=180., nmax=200):
+                    radius=180., nmax=200, max_flux=500):
     """Create a skymodel using a pre-made catalogue.
 
     This requires a very specific format.
@@ -382,6 +387,8 @@ def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1.,
         Limiting declination values.
 
     """
+
+    min_flux = a_cut
 
     if outname is None:
         outname = metafits.replace(".metafits", "_skymodel.txt")
@@ -452,9 +459,18 @@ def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1.,
 
             catalogue[i]["S200"] = np.nan
 
+        if a_cut <= catalogue[i]["S200"] < max_flux:
+
+            pass
+
+        else:
+
+            catalogue[i]["S200"] = np.nan
+
         # Attenuate by the primary beam
         catalogue[i]["S1400"] = catalogue[i]["S200"]
         catalogue[i]["S200"] *= stokesI[i]
+
 
 
 
@@ -521,6 +537,7 @@ def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1.,
                                                  b=catalogue[i]["beta_p"])/1000.)
                 else:
                     flux.append(catalogue[i]["S1400"]*(f/freq)**alpha)
+
 
             pformat = point_formatter(name="Source{}".format(i),
                                       ra=r,
