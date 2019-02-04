@@ -103,6 +103,39 @@ def cb_cpowerlaw(x, y, yerr, pcov, popt, conf=68.):
     return upperband, lowerband
 
 
+def cb_powerlaw(x, y, yerr, pcov, popt, conf=68.):
+    """
+    """
+
+    dfda = x**popt[1]
+    dfdb = powerlaw(x, *popt)*np.log(x)
+
+    dfdp = [dfda, dfdb]
+
+    alpha = 1. - conf/100.
+    prb = 1 - alpha/2.
+    n = len(popt)
+    N = len(x)
+    dof = N - n
+
+    chi2 = np.sum((y - powerlaw(x, *popt))**2 / yerr**2)
+    redchi2 = chi2 / dof
+
+    df2 = np.zeros(len(dfdp[0]))
+    for j in range(n):
+        for k in range(n):
+            df2 += dfdp[j]*dfdp[k]*pcov[j, k]
+    df = np.sqrt(redchi2*df2)
+
+    y_model = powerlaw(x, *popt)
+    tval = t.ppf(prb, dof)
+    delta = tval * df
+    upperband = y_model + delta
+    lowerband = y_model - delta
+
+    return upperband, lowerband
+
+
 # ---------------------------------------------------------------------------- #
 def fit(f, x, y, yerr=None, params=None, return_pcov=False):
     """Fit function `f` to data `x`, `y`, with absolute error `yerr`.

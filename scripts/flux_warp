@@ -24,16 +24,17 @@ def main():
     ps.add_argument("-r", "--ref_freq", type=float, default=154.)
     ps.add_argument("-n", "--nmax", type=int, default=100)
     ps.add_argument("-p", "--plot", action="store_true")
-    ps.add_argument("-s", "--smooth", type=int, default=0)
+    ps.add_argument("-s", "--smooth", type=float, default=0)
     ps.add_argument("-F", "--flux_key", default="flux")
 
 
     args = ps.parse_args()
 
+    hdr = fits.getheader(args.image)
+
     no_freq = False
     if args.freq is None:
         no_freq = True
-        hdr = fits.getheader(args.image)
         if "FREQ" in hdr:
             args.freq = hdr["FREQ"]/1.e6
         elif "CRVAL3" in hdr:
@@ -43,9 +44,24 @@ def main():
         else:
             raise ValueError("Unable to get frequency information!")
 
+
+    if args.smooth > 0:
+
+        if "CDELT1" in hdr.keys():
+            cd = abs(hdr["CDELT1"])
+        elif "CD1_1" in hdr.keys():
+            cd = abs(hdr["CD1_1"])
+
+        args.smooth /= cd 
+
+        logging.info("Smoothing over {} pixels".format(int(args.smooth)))
+
+
     with fits.open(args.model_table) as f:
 
         table = f[1].data
+
+        logging.info("Starting to flux warp...")
 
         ratios, indices = fluxscale(table=table, 
                                     freq=args.freq,
@@ -59,7 +75,7 @@ def main():
                                                pra=table["ra"][indices],
                                                pdec=table["dec"][indices],
                                                ratios=ratios,
-                                               smooth=args.smooth)
+                                               smooth=int(args.smooth))
 
         if args.outname is None:
             args.outname = args.image.replace(".fits", "_scaled.fits")
