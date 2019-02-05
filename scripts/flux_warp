@@ -26,6 +26,7 @@ def main():
     ps.add_argument("-p", "--plot", action="store_true")
     ps.add_argument("-s", "--smooth", type=float, default=0)
     ps.add_argument("-F", "--flux_key", default="flux")
+    ps.add_argument("-i", "--interpolation", "--mode", dest="mode", default="constant")
 
 
     args = ps.parse_args()
@@ -75,7 +76,8 @@ def main():
                                                pra=table["ra"][indices],
                                                pdec=table["dec"][indices],
                                                ratios=ratios,
-                                               smooth=int(args.smooth))
+                                               smooth=int(args.smooth),
+                                               interpolation=args.mode)
 
         if args.outname is None:
             args.outname = args.image.replace(".fits", "_scaled.fits")

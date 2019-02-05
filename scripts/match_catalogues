@@ -6,6 +6,9 @@ import os
 
 from argparse import ArgumentParser
 
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+
 from skymodel.catalogue_match import Catalogue, match, write_out
 from skymodel.create_skymodel import get_exclusion_coords
 
@@ -62,6 +65,8 @@ def main():
     ps.add_argument("-F", "--flux", type=str, default="int_flux", help=help_["F"])
     ps.add_argument("-E", "--eflux", type=str, default="err_int_flux", 
                     help=help_["E"])
+    ps.add_argument("-c", "--coords", type=float, nargs=2)
+    ps.add_argument("-S", "--radius", type=float, default=10.0)
 
     args = ps.parse_args()
 
@@ -71,6 +76,14 @@ def main():
     
     logging.debug("Opening cat2 {}".format(args.catalogue2))
     cat2 = Catalogue(args.catalogue2, ra_key=args.ra2, dec_key=args.dec2)
+
+    if args.coords is not None:
+
+        logging.debug("Excluding sources outside of {} degrees around {}".format(args.radius, args.coords))
+        coords = SkyCoord(ra=args.coords[0], dec=args.coords[1],
+                          unit=(u.deg, u.deg))
+        cat1.only_within(coords, args.radius)
+        cat2.only_within(coords, args.radius)
 
     if args.exclude is not None:
         

@@ -59,6 +59,15 @@ class Catalogue(object):
         self.coords = self.coords[indices]
 
 
+    def only_within(self, coords, radius):
+        """Remove sources outside of the radius specified."""
+
+        sep = coords.separation(self.coords)
+
+        self.table = self.table[np.where(sep.value < radius)]
+        self.coords = self.coords[np.where(sep.value < radius)]
+
+
     def clip(self, threshold):
 
         if self.flux is not None:
@@ -98,6 +107,7 @@ def match(cat1, cat2, separation, exclusion=0.):
 
     if isinstance(separation, np.ndarray):
         separation = separation[idx1]
+
 
     cond = np.where((sep1.value < separation) & (sep2.value > exclusion))[0]
 

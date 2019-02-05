@@ -158,25 +158,40 @@ def correction_factor_map(image, pra, pdec, ratios, interpolation="linear",
     """
     """
 
+
+
     if outname is None:
-        outname = image.replace(".fits", "_scale_factors.fits")
+        outname = image.replace(".fits", "_{}_factors.fits".format(interpolation))
 
+    if interpolation.lower()[:3] == "con":
 
-    rbf(image=image,
-        x=pra,
-        y=pdec,
-        z=ratios,
-        interpolation=interpolation,
-        smooth=smooth,
-        world_coords=True,
-        memfrac=memfrac,
-        absmem=absmem,
-        outname=outname,
-        const=None,
-        constrain=True
-        )
+        factor = np.nanmean(ratios)
+
+        with fits.open(image) as f:
+
+            factors = np.full_like(f[0].data, factor)
+
+            fits.writeto(outname, factors, f[0].header)
+
+    else:
+
+        rbf(image=image,
+            x=pra,
+            y=pdec,
+            z=ratios,
+            interpolation=interpolation,
+            smooth=smooth,
+            world_coords=True,
+            memfrac=memfrac,
+            absmem=absmem,
+            outname=outname,
+            const=None,
+            constrain=True
+            )
 
     return outname
+
+
 
 
 def apply_corrections(image, correction_image, outname):
