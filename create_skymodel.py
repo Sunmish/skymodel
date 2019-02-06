@@ -96,10 +96,15 @@ def get_exclusion_coords(skymodel):
                     bits = line.split()
                     era.append(bits[1])
                     edec.append(bits[2])
+    if era != []:
 
-    exclusion_coords = SkyCoord(ra=era, dec=edec)
+        exclusion_coords = SkyCoord(ra=era, dec=edec,
+                                    unit=(u.hourangle, u.deg))
 
-    return exclusion_coords
+        return exclusion_coords
+
+    else:
+        return None
 
 
 
