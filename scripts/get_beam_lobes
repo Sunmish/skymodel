@@ -54,7 +54,7 @@ def main():
             coords = SkyCoord(ra=lobes[i].ra,
                               dec=lobes[i].dec,
                               unit=(u.deg, u.deg))
-            sep = coords.spearation(pnt)
+            sep = coords.separation(pnt)
             if sep.value < min_sep:
                 main_lobe = i
     else:
