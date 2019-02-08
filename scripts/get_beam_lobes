@@ -3,6 +3,8 @@
 import argparse
 
 from astropy.io import fits
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 from skymodel import get_beam, parsers
 
 
@@ -22,8 +24,15 @@ def main():
                     help="Supply a metafits file to make a primary beam image. "
                          "If this option is used the positional argument should "
                          "be the metafits file.")
+    ps.add_argument("-S", "--sidelobes", action="store_true",
+                    help="Switch to return only the sidelobes.")
+    ps.add_argument("-M", "--mainlobe", action="store_true",
+                    help="Switch to return only the mainlobe.")
 
     args = ps.parse_args()
+
+    if args.sidelobes and args.mainlobe:
+        return RuntimeError("No lobes to find!")
 
     if args.metafits:
 
@@ -39,14 +48,30 @@ def main():
 
     lobes = get_beam.find_lobes(hdu, perc=args.perc)
 
-    # Main lobe:
-    print("main: {:.2f} {:+.2f} {:.2f}".format(lobes[1].ra, 
-                                               lobes[1].dec, 
-                                               lobes[1].maximum_size))
-    for i in range(2, len(lobes.keys())+1):
-        print("side: {:.2f} {:+.2f} {:.2f}".format(lobes[i].ra,
-                                                   lobes[i].dec,
-                                                   lobes[i].maximum_size))
+    if args.metafits:
+        min_sep = 1e9
+        for i in lobes.keys():
+            coords = SkyCoord(ra=lobes[i].ra,
+                              dec=lobes[i].dec,
+                              unit=(u.deg, u.deg))
+            sep = coords.spearation(pnt)
+            if sep.value < min_sep:
+                main_lobe = i
+    else:
+        main_lobe = 1
+
+
+    if not args.sidelobes:
+        # Main lobe:
+        print("main: {:.2f} {:+.2f} {:.2f}".format(lobes[main_lobe].ra, 
+                                                   lobes[main_lobe].dec, 
+                                                   lobes[main_lobe].maximum_size))
+    if not args.mainlobe:
+        for i in lobes.keys():
+            if i != main_lobe:
+                print("side: {:.2f} {:+.2f} {:.2f}".format(lobes[i].ra,
+                                                           lobes[i].dec,
+                                                           lobes[i].maximum_size))
 
 
 if __name__ == "__main__":
