@@ -33,6 +33,8 @@ def hist_plot(ratios, outname, color="black"):
     """
     """
 
+    return
+
     font_labels = 24.
     font_ticks = 20.
     size = (10, 8)
