@@ -56,6 +56,7 @@ def main():
                               unit=(u.deg, u.deg))
             sep = coords.separation(pnt)
             if sep.value < min_sep:
+                min_sep = sep.value
                 main_lobe = i
     else:
         main_lobe = 1
