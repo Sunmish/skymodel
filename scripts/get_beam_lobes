@@ -48,6 +48,7 @@ def main():
 
     lobes = get_beam.find_lobes(hdu, perc=args.perc)
 
+    main_lobe = None
     if args.metafits:
         min_sep = 1e9
         for i in lobes.keys():
@@ -55,14 +56,14 @@ def main():
                               dec=lobes[i].dec,
                               unit=(u.deg, u.deg))
             sep = coords.separation(pnt)
-            if sep.value < min_sep:
+            if sep.value < min_sep and sep.value < lobes[i].maximum_size:
                 min_sep = sep.value
                 main_lobe = i
     else:
         main_lobe = 1
 
 
-    if not args.sidelobes:
+    if not args.sidelobes and main_lobe is not None:
         # Main lobe:
         print("main: {:.2f} {:+.2f} {:.2f}".format(lobes[main_lobe].ra, 
                                                    lobes[main_lobe].dec, 

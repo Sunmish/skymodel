@@ -7,8 +7,9 @@ from astropy.io import fits
 from skymodel.fluxmatch import fluxscale, correction_factor_map, apply_corrections, plot
 
 import logging
-logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.INFO)
+logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 def main():
     """
@@ -27,6 +28,7 @@ def main():
     ps.add_argument("-s", "--smooth", type=float, default=0)
     ps.add_argument("-F", "--flux_key", default="flux")
     ps.add_argument("-i", "--interpolation", "--mode", dest="mode", default="constant")
+    ps.add_argument("-I", "--ignore_magellanic", dest="ignore", action="store_true")
 
 
     args = ps.parse_args()
@@ -55,14 +57,14 @@ def main():
 
         args.smooth /= cd 
 
-        logging.info("Smoothing over {} pixels".format(int(args.smooth)))
+        logger.info("Smoothing over {} pixels".format(int(args.smooth)))
 
 
     with fits.open(args.model_table) as f:
 
         table = f[1].data
 
-        logging.info("Starting to flux warp...")
+        logger.info("Starting to flux warp...")
 
         ratios, indices = fluxscale(table=table, 
                                     freq=args.freq,
@@ -70,7 +72,8 @@ def main():
                                     ref_freq=args.ref_freq,
                                     flux_key=args.flux_key,
                                     nsrc_max=args.nmax,
-                                    histnamebase=args.outname)
+                                    histnamebase=args.outname,
+                                    ignore_magellanic=args.ignore)
 
         correction_map = correction_factor_map(image=args.image,
                                                pra=table["ra"][indices],
@@ -81,7 +84,7 @@ def main():
 
         if args.outname is None:
             args.outname = args.image.replace(".fits", "_scaled.fits")
-            logging.info("Setting output filename to {}".format(args.outname))
+            logger.info("Setting output filename to {}".format(args.outname))
 
         apply_corrections(image=args.image,
                           correction_image=correction_map,

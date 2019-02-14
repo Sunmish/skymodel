@@ -6,12 +6,15 @@ rbf = sparse_grid_interpolator.rbf
 
 from astropy.io import fits
 from astropy.wcs import WCS
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 
 from skymodel.fitting import cpowerlaw, powerlaw
 
 import logging
-logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.DEBUG)
+logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 import matplotlib as mpl
 mpl.use("Agg")
@@ -21,12 +24,22 @@ from matplotlib import rc
 # Without this the default font will have issues with MNRAS (being type 3)
 rc('font', **{'family':'serif', 'serif':['Times'], 'weight':'medium'})
 rc('text', usetex=True)
-params = {"text.latex.preamble": [r"\usepackage{siunitx}", \
-          r"\sisetup{detect-family = true}"]}
-plt.rcParams.update(params)
 
 mpl.rcParams['xtick.direction'] = 'in'
 mpl.rcParams['ytick.direction'] = 'in'
+
+
+# Coordinates from Hurley-Walker et al. 2017 and radius +0.5 degrees.
+LMC = {"coords": SkyCoord(ra="05h23m35s", dec="-69d45m22s", unit=(u.hourangle, u.deg)),
+       "radius": 6.0,
+       "name": "LMC"}
+
+SMC = {"coords": SkyCoord(ra="00h52m38s", dec="-72d48m01s", unit=(u.hourangle, u.deg)),
+       "radius": 3.0,
+       "name": "SMC"}
+
+SOURCES = [LMC, SMC]
+
 
 
 def hist_plot(ratios, outname, color="black"):
@@ -54,6 +67,36 @@ def hist_plot(ratios, outname, color="black"):
 
     plt.close("all")
 
+def box_plot(ratios, outname, color="black"):
+    """
+    """
+
+    font_labels = 24.
+    font_ticks = 20.
+    size = (10, 8)
+    axes = [0.15, 0.1, 0.83, 0.88]
+
+    plt.close("all")
+
+    fig = plt.figure(figsize=size)
+    ax1 = plt.axes(axes)
+
+    ax1.boxplot(ratios, medianprops={"color": color})
+    ax1.set_xlabel("Factor samples", fontsize=font_labels)
+    ax1.set_ylabel("Correction factor", fontsize=font_labels)
+    ax1.tick_params(axis="both", which="both", labelsize=font_ticks)
+    ax1.tick_params(axis="x", which="major", pad=7)
+
+    labels = [item.get_text() for item in ax1.get_xticklabels()]
+    labels[0] = "Original"
+    labels[1] = r"$\sigma$-clipped"
+    labels[2] = r"$N_{\mathrm{src}}$ cut"
+    ax1.set_xticklabels(labels)
+
+    plt.savefig(outname)
+    plt.close("all")
+
+
 
 def sigma_clip(ratios, indices, sigma=2.):
     """
@@ -80,18 +123,20 @@ def nsrc_cut(table, flux_key, indices, nsrc_max, ratios):
         threshold = round(np.sort(cflux)[::-1][nsrc_max-1], 1)
         indices = indices[cflux > threshold]
         ratios = ratios[cflux > threshold]
-        logging.info("New threshold set to {:.1f} Jy".format(threshold))
+        logger.info("New threshold set to {:.1f} Jy".format(threshold))
 
     return indices, ratios
 
 
 
 def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
-              flux_key="flux", nsrc_max=100, histnamebase="table"):
+              flux_key="flux", nsrc_max=100, histnamebase="table",
+              ignore_magellanic=True):
     """
     """
 
-    ref_freq_key = "S{}".format(int(ref_freq))
+
+    ref_freq_key = "S{:0>3}".format(int(ref_freq))
 
     predicted_flux, indices = [], []
     ratios = []
@@ -100,6 +145,24 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
 
 
     for i in range(len(table)):
+
+        if ignore_magellanic:
+
+            in_magellanic = False
+
+            source_coords = SkyCoord(ra=table["ra"][i], 
+                                     dec=table["dec"][i],
+                                     unit=(u.deg, u.deg))
+
+            for magellanic in SOURCES:
+                sep_magellanic = magellanic["coords"].separation(source_coords)
+                if sep_magellanic.value <= magellanic["radius"]:
+                    logger.debug("Skipping {} as it is within the {}".format(i, magellanic["name"]))
+                    in_magellanic = True
+
+            if in_magellanic:
+                continue
+
 
         if not np.isnan(table["alpha_c"][i]):
 
@@ -128,7 +191,7 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
 
 
 
-    # logging.info("Number of calibrators prior to clipping: {}".format(len(predicted_flux)))
+    # logger.info("Number of calibrators prior to clipping: {}".format(len(predicted_flux)))
 
 
     valid = np.isfinite(ratios)
@@ -136,20 +199,28 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
     indices = np.asarray(indices)[valid]
 
 
-    logging.info("Number of calibrators prior to clipping: {}".format(len(indices)))
+    logger.info("Number of calibrators prior to clipping: {}".format(len(indices)))
 
     hist_plot(ratios, histnamebase+"_hist1.eps", color="dodgerblue")
+
+    all_ratios = [ratios]
     
     predicted_ratios, predicted_indices = sigma_clip(np.asarray(ratios), np.asarray(indices))
     
-    logging.info("Number of calibrators after clipping: {}".format(len(predicted_indices)))
+    logger.info("Number of calibrators after clipping: {}".format(len(predicted_indices)))
+
+    all_ratios.append(predicted_ratios)
 
     predicted_indices, predicted_ratios = nsrc_cut(table, flux_key, predicted_indices, 
                                  nsrc_max, predicted_ratios)
 
     hist_plot(predicted_ratios, histnamebase+"_hist2.eps", color="red")
 
-    logging.info("Number of calibrators: {}".format(len(predicted_indices)))
+    all_ratios.append(predicted_ratios)
+
+    box_plot(all_ratios, histnamebase+"_boxplot.eps", color="red")
+
+    logger.info("Number of calibrators: {}".format(len(predicted_indices)))
     return np.asarray(predicted_ratios), np.asarray(predicted_indices)
 
 
@@ -167,13 +238,13 @@ def correction_factor_map(image, pra, pdec, ratios, interpolation="linear",
 
     if interpolation.lower()[:3] == "con":
 
-        factor = np.nanmean(ratios)
+        factor = np.nanmedian(ratios)
 
         with fits.open(image) as f:
 
             factors = np.full_like(f[0].data, factor)
 
-            fits.writeto(outname, factors, f[0].header)
+            fits.writeto(outname, factors, f[0].header, overwrite=True)
 
     else:
 
@@ -203,8 +274,11 @@ def apply_corrections(image, correction_image, outname):
     im = fits.open(image)
     ref = fits.getdata(correction_image)
 
+    logger.info("Mean factor: {}".format(np.nanmean(ref)))
+
     cdata = im[0].data.copy()
     cdata *= ref
+
 
     fits.writeto(outname, cdata, im[0].header, overwrite=True)
 

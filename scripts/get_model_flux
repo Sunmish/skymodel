@@ -14,7 +14,8 @@ def main():
     parser.add_argument("-a", "--aocal", "--aofile", dest="aocal", default=None, 
                         help="Skymodel format 1.0/1.1 file.")
     parser.add_argument("-f", "--freq", dest="freq", default=None, 
-                        help="Frequency in MHz at which to estimate flux density")
+                        help="Frequency in MHz at which to estimate flux density",
+                        type=float)
     parser.add_argument("-m", "--metafits", dest="metafits", default=None, 
                         help="MWA metafits file to read frequency from.")
     parser.add_argument("-s", "--alpha", "--si", dest="alpha", default=-0.7,

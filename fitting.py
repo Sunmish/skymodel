@@ -12,9 +12,9 @@ mpl.use("Agg")  # Supercomputer safe!
 import matplotlib.pyplot as plt
 
 import logging
-logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.INFO)
-
+logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 # ---------------------------------------------------------------------------- #
 def from_index(x, x1, y1, index):
@@ -56,7 +56,7 @@ def cpowerlaw(x, a, b, c):
 # def ucpowerlaw(x, a, b, c, ea, eb, ec):
 #     """Uncertainty in simple curved powerlaw calculation."""
 #     f = cpowerlaw(x, a, b, c)
-#     df = f*np.sqrt(abs(a*x**(-1.)*ea)**2 + 
+#     df = f*np.sqrt(abs(a*x`**(-1.)*ea)**2 + 
 #                    abs(eb*np.log(x)**2)**2 + 
 #                    abs(ec)**2)
 #     return df

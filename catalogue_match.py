@@ -6,9 +6,9 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 
 import logging
-logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.DEBUG)
-
+logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class Catalogue(object):
     """Easy handling of a catalogue."""
@@ -121,7 +121,7 @@ def match(cat1, cat2, separation, exclusion=0.):
     indices = indices[np.where(uniq == 1)]
 
     duplicates = [uniq > 1]
-    logging.debug("Removed {} duplicate matches between {} and {}".format(
+    logger.debug("Removed {} duplicate matches between {} and {}".format(
                   len(duplicates), cat1.name, cat2.name))
 
     # indices[:, 0] --> cat1 indices
