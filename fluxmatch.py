@@ -14,12 +14,14 @@ from skymodel.fitting import cpowerlaw, powerlaw
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 
+
+from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib import rc
 # Without this the default font will have issues with MNRAS (being type 3)
 rc('font', **{'family':'serif', 'serif':['Times'], 'weight':'medium'})
@@ -41,64 +43,27 @@ SMC = {"coords": SkyCoord(ra="00h52m38s", dec="-72d48m01s", unit=(u.hourangle, u
 SOURCES = [LMC, SMC]
 
 
-
-def hist_plot(ratios, outname, color="black"):
+def writeout_region(ra, dec, ratio, outname, color="green"):
     """
     """
 
-    return
+    with open(outname, "w+") as f:
 
-    font_labels = 24.
-    font_ticks = 20.
-    size = (10, 8)
-    axes = [0.15, 0.1, 0.81, 0.86]
+        for i in range(len(ra)):
 
-    plt.close("all")
+            size = 0.1
 
-    fig = plt.figure(figsize=size)
-    ax1 = plt.axes(axes)
-
-    ax1.hist(ratios, 20, color=color, histtype="step")
-    ax1.set_xlabel("Correction factor", fontsize=font_labels)
-    ax1.set_ylabel("Number", fontsize=font_labels)
-    ax1.tick_params(axis="both", which="both", labelsize=font_ticks)
-
-    plt.savefig(outname)
-
-    plt.close("all")
-
-def box_plot(ratios, outname, color="black"):
-    """
-    """
-
-    font_labels = 24.
-    font_ticks = 20.
-    size = (10, 8)
-    axes = [0.15, 0.1, 0.83, 0.88]
-
-    plt.close("all")
-
-    fig = plt.figure(figsize=size)
-    ax1 = plt.axes(axes)
-
-    ax1.boxplot(ratios, medianprops={"color": color})
-    ax1.set_xlabel("Factor samples", fontsize=font_labels)
-    ax1.set_ylabel("Correction factor", fontsize=font_labels)
-    ax1.tick_params(axis="both", which="both", labelsize=font_ticks)
-    ax1.tick_params(axis="x", which="major", pad=7)
-
-    labels = [item.get_text() for item in ax1.get_xticklabels()]
-    labels[0] = "Original"
-    labels[1] = r"$\sigma$-clipped"
-    labels[2] = r"$N_{\mathrm{src}}$ cut"
-    ax1.set_xticklabels(labels)
-
-    plt.savefig(outname)
-    plt.close("all")
+            f.write("fk5;circle {}d {}d {}d # color={}\n".format(ra[i], dec[i], size, color))
 
 
+def flux_from_index(flux1, freq1, freq2, alpha):
+    """Calculate flux density at a given frequency."""
 
-def sigma_clip(ratios, indices, sigma=2.):
+    return flux1*(freq2 / freq1)**alpha 
+
+
+def sigma_clip(ratios, indices, sigma=2., table=None,
+               outname=None):
     """
     """
 
@@ -107,6 +72,18 @@ def sigma_clip(ratios, indices, sigma=2.):
 
     new_indices = np.where(abs(ratios-avg) < sigma*std)[0]
 
+    if table is not None and outname is not None:
+       
+        clipped_indices = np.where(abs(ratios-avg) >= sigma*std)[0]
+        clipped_ratios = ratios[clipped_indices]
+        clipped_ra = table["ra"][clipped_indices]
+        clipped_dec = table["dec"][clipped_indices]
+
+        writeout_region(ra=clipped_ra,
+                        dec=clipped_dec,
+                        ratio=clipped_ratios,
+                        outname=outname,
+                        color="yellow")
 
     return ratios[new_indices], indices[new_indices]
 
@@ -116,7 +93,7 @@ def nsrc_cut(table, flux_key, indices, nsrc_max, ratios):
     """
 
 
-    cflux = table[indices][flux_key]*ratios
+    cflux = table[indices][flux_key]/ratios
 
 
     if len(cflux) > nsrc_max:
@@ -125,13 +102,13 @@ def nsrc_cut(table, flux_key, indices, nsrc_max, ratios):
         ratios = ratios[cflux > threshold]
         logger.info("New threshold set to {:.1f} Jy".format(threshold))
 
-    return indices, ratios
+    return ratios, indices
 
 
 
 def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
-              flux_key="flux", nsrc_max=100, histnamebase="table",
-              ignore_magellanic=True):
+              flux_key="flux", nsrc_max=100, region_file_name="table",
+              ignore_magellanic=True, extrapolate=False, curved=True):
     """
     """
 
@@ -140,9 +117,6 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
 
     predicted_flux, indices = [], []
     ratios = []
-
-    # table = nsrc_cut(table, flux_key, nsrc_max)
-
 
     for i in range(len(table)):
 
@@ -164,19 +138,35 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
                 continue
 
 
-        if not np.isnan(table["alpha_c"][i]):
+        if (not np.isnan(table["alpha_c"][i])) and (not extrapolate) and curved:
 
             # Use the curved power law fit:
             f = cpowerlaw(freq, *[table[p+"_c"][i] for p in ["alpha", "beta", "gamma"]])
 
+
         elif not np.isnan(table["alpha_p"][i]):
 
-            # Use standard power law fit:
-            f = powerlaw(freq, *[table[p+"_c"][i] for p in ["alpha", "beta"]])
+            if extrapolate:
+                if not np.isnan(table[ref_freq_key][i]):
+                    f = flux_from_index(flux1=table[ref_freq_key][i], 
+                                        freq1=ref_freq,
+                                        freq2=freq, 
+                                        alpha=table["beta_p"][i])
+                else:
+                    continue
+
+            else:
+
+                # Use standard power law fit:
+                f = powerlaw(freq, *[table[p+"_p"][i] for p in ["alpha", "beta"]])
+
 
         elif not np.isnan(table[ref_freq_key][i]):
 
-            f = table[ref_freq_key][i]*(freq/ref_freq)**spectral_index
+            f = flux_from_index(flux1=table[ref_freq_key][i],
+                                freq1=ref_freq,
+                                freq2=freq,
+                                alpha=spectral_index)
 
         else:
             continue
@@ -186,12 +176,8 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
             indices.append(i)
             predicted_flux.append(f)
 
-            ratios.append(f/table[flux_key][i])
+            ratios.append(table[flux_key][i]/f)
 
-
-
-
-    # logger.info("Number of calibrators prior to clipping: {}".format(len(predicted_flux)))
 
 
     valid = np.isfinite(ratios)
@@ -201,36 +187,45 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
 
     logger.info("Number of calibrators prior to clipping: {}".format(len(indices)))
 
-    hist_plot(ratios, histnamebase+"_hist1.eps", color="dodgerblue")
-
     all_ratios = [ratios]
+
+    p_ratios, p_indices = sigma_clip(ratios=np.asarray(ratios), 
+                                     indices=np.asarray(indices),
+                                     table=table,
+                                     outname=region_file_name.replace(".reg", "_sigma3.reg"),
+                                     sigma=3)
+    p_ratios, p_indices = sigma_clip(ratios=p_ratios,
+                                     indices=p_indices,
+                                     table=table,
+                                     outname=region_file_name.replace(".reg", "_sigma2.reg"),
+                                     sigma=2)
+
     
-    predicted_ratios, predicted_indices = sigma_clip(np.asarray(ratios), np.asarray(indices))
-    
-    logger.info("Number of calibrators after clipping: {}".format(len(predicted_indices)))
+    logger.info("Number of calibrators after clipping: {}".format(len(p_indices)))
 
-    all_ratios.append(predicted_ratios)
+    all_ratios.append(p_ratios)
 
-    predicted_indices, predicted_ratios = nsrc_cut(table, flux_key, predicted_indices, 
-                                 nsrc_max, predicted_ratios)
+    p_ratios, p_indices = nsrc_cut(table, flux_key, p_indices, 
+                                 nsrc_max, p_ratios)
 
-    hist_plot(predicted_ratios, histnamebase+"_hist2.eps", color="red")
+    all_ratios.append(p_ratios)
 
-    all_ratios.append(predicted_ratios)
+    logger.info("Number of calibrators: {}".format(len(p_indices)))
 
-    box_plot(all_ratios, histnamebase+"_boxplot.eps", color="red")
-
-    logger.info("Number of calibrators: {}".format(len(predicted_indices)))
-    return np.asarray(predicted_ratios), np.asarray(predicted_indices)
+    return p_ratios, p_indices, all_ratios
 
 
 
 def correction_factor_map(image, pra, pdec, ratios, interpolation="linear",
                           memfrac=0.5, absmem="all", outname=None,
-                          smooth=0): 
+                          smooth=0, writeout=True): 
     """
     """
 
+
+    if writeout:
+        writeout_region(pra, pdec, ratios, image.replace(".fits", "_calibrators.reg"),
+            color="magenta")
 
 
     if outname is None:
@@ -248,6 +243,7 @@ def correction_factor_map(image, pra, pdec, ratios, interpolation="linear",
 
     else:
 
+        logger.info("Passing {} off to sparse_grid_interpolator...".format(image))
         rbf(image=image,
             x=pra,
             y=pdec,
@@ -274,13 +270,14 @@ def apply_corrections(image, correction_image, outname):
     im = fits.open(image)
     ref = fits.getdata(correction_image)
 
-    logger.info("Mean factor: {}".format(np.nanmean(ref)))
+    logger.info("Mean factor S_predic/S_meas: {}".format(np.nanmean(ref)))
 
     cdata = im[0].data.copy()
-    cdata *= ref
+    cdata /= ref
 
 
     fits.writeto(outname, cdata, im[0].header, overwrite=True)
+
 
 
 
@@ -289,87 +286,102 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     """
     """
 
+    cmap = plt.get_cmap(cmap, 11)
+    colors = [cmap(2), cmap(7)]
+
+
+    plt.close("all")
     
+    font_labels = 20.
+    font_ticks = 16.
+    R = 1.
+
+
+    figsize = (12, 8)
+    fig = plt.figure(figsize=figsize)
+
+    gs = GridSpec(2, 3, wspace=0.08*R, hspace=0.12, left=0.02*R, 
+                  right=1-0.1*R, top=0.95, bottom=0.15)
+
+
+    apl = plt.subplot(gs[:, :-1])
+    ax2 = plt.subplot(gs[0, -1])
+    ax3 = plt.subplot(gs[1, -1])
+
+    ax2.boxplot(ratios, medianprops={"color": colors[0]}, vert=False)
+    ax2.yaxis.tick_right()
+    ax2.tick_params(axis="both", which="both", labelsize=font_ticks)
+    ax2.tick_params(axis="y", which="major", pad=7)
+
+    labels = [item.get_text() for item in ax2.get_yticklabels()]
+    labels[0] = "Original"
+    labels[1] = r"$\sigma$-clip"
+    labels[2] = r"$N_{\mathrm{src}}$ cut"
+    ax2.set_yticklabels(labels, rotation=90, va="center")
+
+
+    map_ratios = fits.getdata(correction_image).flatten()
+
+
+    ax3.hist([map_ratios, ratios[2]], bins=40, histtype="step",
+             color=colors, fill=False, 
+             label=["Interpolation", "Calibrators"], density=True)
+    legend = ax3.legend(loc="upper right", shadow=False, fancybox=False, frameon=True,
+                        fontsize=16, numpoints=1)
+    legend.get_frame().set_edgecolor("dimgrey")
+
+    ax3.set_xlabel(r"$S_\mathrm{measured}/S_\mathrm{predicted}$", fontsize=font_labels)
+    ax3.yaxis.tick_right()
+    ax3.tick_params(axis="both", which="both", labelsize=16.)
+
+    norm = mpl.colors.Normalize(vmin=min(ratios[2]), vmax=max(ratios[2]))
+
+    sb1 = SubplotSpec(gs, 0)
+    sp1 = sb1.get_position(figure=fig).get_points().flatten()
+    x = sp1[0]
+
+    gp1 = apl.get_position().get_points().flatten() 
+    dx = gp1[2] - gp1[0]
+    sb2 = SubplotSpec(gs, 4)
+    sp2 = sb2.get_position(figure=fig).get_points().flatten()
+    y = sp2[1]
+    cbax = [x, y-0.025, dx, 0.02]
+
+    wcs = WCS(fits.getheader(correction_image)).celestial
+
+
     
+    apl.imshow(np.squeeze(fits.getdata(correction_image)), cmap=cmap, norm=norm,
+               origin="lower", aspect="auto")
 
+    x, y = wcs.all_world2pix(pra, pdec, 0)
 
-    size = (10, 10)
-    axes = [0.15, 0.1, 0.83, 0.8]
-    cbax = [0.15, 0.975, 0.83, 0.02]
-    fig = plt.figure(figsize=size)
+    apl.scatter(x, y, c=ratios[2], edgecolors="magenta", s=100, marker="o", 
+                norm=norm, cmap=cmap)
 
-    norm = mpl.colors.Normalize(vmin=min(ratios), vmax=max(ratios))
-
-
-    try:
-        import aplpy
-        from matplotlib import rc
-
-
-        rc('font', **{'family':'serif', 'serif':['Times'], 'weight':'medium'})
-        rc('text', usetex=True)
-        params = {"text.latex.preamble": [r"\usepackage{siunitx}",
-                  r"\sisetup{detect-family = true}"]}
-        plt.rcParams.update(params)
-
-        # By default ticks are all out - they shouldn't be!
-        mpl.rcParams['xtick.direction'] = 'in'
-        mpl.rcParams['ytick.direction'] = 'in'
-
-        apl = aplpy.FITSFigure(correction_image, fig, axes)
-        apl.show_colorscale(vmin=norm.vmin, vmax=norm.vmax, cmap=cmap)
-
-        apl.ticks.set_length(8)
-        apl.ticks.set_linewidth(1)
-        apl.ticks.set_minor_frequency(10)
-        apl.tick_labels.set_font(size=22.)
-
-        apl.axis_labels.set_font(size=24.)
-        apl.axis_labels.set_xpad(10)
-        apl.axis_labels.set_ypad(5)
-    
-        apl.axis_labels.set_xtext(r"R.~A. (J2000)")
-        apl.axis_labels.set_ytext(r"Decl. (J2000)")
-
-        apl.show_markers(pra, pdec, c=ratios, edgecolors="magenta", s=100,
-                         marker="o")
-
-    except Exception:
-
-        wcs = WCS(fits.getheader(correction_image)).celestial
-
-        apl = plt.axes(axes)
-        apl.imshow(np.squeeze(fits.getdata(correction_image)), cmap=cmap, norm=norm,
-                   origin="lower")
-    
-        x, y = wcs.all_world2pix(pra, pdec, 0)
-
-        apl.scatter(x, y, c=ratios, edgecolors="magenta", s=100, marker="o", 
-                    norm=norm, cmap=cmap)
-
-        apl.axes.get_xaxis().set_ticks([])
-        apl.axes.get_yaxis().set_ticks([])
+    apl.axes.get_xaxis().set_ticks([])
+    apl.axes.get_yaxis().set_ticks([])
 
 
     colorbar_axis = fig.add_axes(cbax)
     colorbar = mpl.colorbar.ColorbarBase(colorbar_axis, cmap=cmap, norm=norm,
                                          orientation="horizontal")
-    colorbar.set_label("Correction factor", 
-                       fontsize=24.,
+    colorbar.set_label(r"$S_\mathrm{measured}/S_\mathrm{predicted}$", 
+                       fontsize=20.,
                        labelpad=0.,
                        verticalalignment="top",
                        horizontalalignment="center")
     colorbar.ax.tick_params(which="major",
-                            labelsize=20.,
+                            labelsize=16.,
                             length=5.,
                             color="black",
                             labelcolor="black",
                             width=1.)
 
     if outname is None:
-        outname = correction_image.replace(".fits", ".eps")
+        outname = correction_image.replace(".fits", ".png")
 
-    fig.savefig(outname, dpi=72, bbox_inches="tight")
+    fig.savefig(outname, dpi=300, bbox_inches="tight")
 
 
 

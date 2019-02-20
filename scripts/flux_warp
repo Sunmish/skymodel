@@ -15,7 +15,15 @@ def main():
     """
     """
 
+
+    _help = {"b": "Select band to extrapolate flux density from. Note when set" 
+                  " only powerlaw models will be used (i.e. the spectral index).",
+             "e": "Select True if wanting to only extrapolate from the "
+                  "reference frequency band."}
+
+
     ps = ArgumentParser()
+
 
     ps.add_argument("model_table")
     ps.add_argument("image")
@@ -29,6 +37,8 @@ def main():
     ps.add_argument("-F", "--flux_key", default="flux")
     ps.add_argument("-i", "--interpolation", "--mode", dest="mode", default="constant")
     ps.add_argument("-I", "--ignore_magellanic", dest="ignore", action="store_true")
+    ps.add_argument("-e", "--extrapolate", action="store_true", help=_help["e"])
+    ps.add_argument("-c", "--curved", action="store_true")
 
 
     args = ps.parse_args()
@@ -66,14 +76,16 @@ def main():
 
         logger.info("Starting to flux warp...")
 
-        ratios, indices = fluxscale(table=table, 
-                                    freq=args.freq,
-                                    threshold=args.threshold,
-                                    ref_freq=args.ref_freq,
-                                    flux_key=args.flux_key,
-                                    nsrc_max=args.nmax,
-                                    histnamebase=args.outname,
-                                    ignore_magellanic=args.ignore)
+        ratios, indices, all_ratios = fluxscale(table=table, 
+                                                freq=args.freq,
+                                                threshold=args.threshold,
+                                                ref_freq=args.ref_freq,
+                                                flux_key=args.flux_key,
+                                                nsrc_max=args.nmax,
+                                                region_file_name=args.outname.replace(".fits", ".reg"),
+                                                ignore_magellanic=args.ignore,
+                                                extrapolate=args.extrapolate,
+                                                curved=args.curved)
 
         correction_map = correction_factor_map(image=args.image,
                                                pra=table["ra"][indices],
@@ -95,7 +107,7 @@ def main():
             plot(correction_map, 
                  pra=table["ra"][indices],
                  pdec=table["dec"][indices],
-                 ratios=ratios
+                 ratios=all_ratios
                  )
 
     if no_freq:
