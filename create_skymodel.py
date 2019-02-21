@@ -30,6 +30,17 @@ FREQ_LIST_STR = ["076", "084", "092", "099", "107", "115", "122", "130",
                  "143", "151", "158", "166", "174", "181", "189", "197",
                  "204", "212", "220", "227"]
 
+# Coordinates from Hurley-Walker et al. 2017 and radius +0.5 degrees.
+LMC = {"coords": SkyCoord(ra="05h23m35s", dec="-69d45m22s", unit=(u.hourangle, u.deg)),
+       "radius": 6.0,
+       "name": "LMC"}
+
+SMC = {"coords": SkyCoord(ra="00h52m38s", dec="-72d48m01s", unit=(u.hourangle, u.deg)),
+       "radius": 3.0,
+       "name": "SMC"}
+
+SOURCES = [LMC, SMC]
+
 # ---------------------------------------------------------------------------- #
 
 def gaussian_formatter(name, ra, dec, major, minor, pa, freq, flux, precision=3):
@@ -112,7 +123,7 @@ def create_model(catalogue, metafits, outname,  \
                  threshold=1., ratio=1.1, radius=120., nmax=500, plot=False, \
                  exclude_coords=None, exclusion_zone=5., \
                  return_catalogue=False, weight=False, curved=True,
-                 max_flux=500):
+                 max_flux=500, ignore_magellanic=True):
     """Create a GLEAM skymodel.
 
     Parameters
@@ -207,6 +218,24 @@ def create_model(catalogue, metafits, outname,  \
                 logging.debug("{0} within exclusion zone.".format(i))
                 GLEAM["Fintwide"][i] = 0.
 
+                continue
+
+
+        if ignore_magellanic:
+
+            in_magellanic = False
+            source_coords = SkyCoord(ra=GLEAM["RAJ2000"][i],
+                                     dec=GLEAM["DEJ2000"][i],
+                                     unit=(u.deg, u.deg))
+
+            for magellanic in SOURCES:
+                sep_magellanic = magellanic["coords"].separation(source_coords)
+                if sep_magellanic.value <= magellanic["radius"]:
+                    logger.debug("Skipping {} as it is within the {}".format(i, magellanic["name"]))
+                    in_magellanic = True
+
+            if in_magellanic:
+                catalogue[i]["S200"] = np.nan
                 continue
 
         tmp_flux, tmp_eflux, tmp_freq, tmp_int = [], [], [], []
@@ -352,7 +381,7 @@ def create_model(catalogue, metafits, outname,  \
 def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1., 
                     s200_cut=1., s1400_cut=0.1, s843_cut=0.1, s150_cut=0.1,
                     exclude_coords=None, exclusion_zone=1., d_limit=(-90, 90),
-                    radius=180., nmax=200, max_flux=500):
+                    radius=180., nmax=200, max_flux=500, ignore_magellanic=True):
     """Create a skymodel using a pre-made catalogue.
 
     This requires a very specific format.
@@ -442,6 +471,24 @@ def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1.,
         # Now for to the long and painful part:
 
         row = catalogue[i]
+
+        if ignore_magellanic:
+
+            in_magellanic = False
+            source_coords = SkyCoord(ra=catalogue["ra"][i],
+                                     dec=catalogue["dec"][i],
+                                     unit=(u.deg, u.deg))
+
+            for magellanic in SOURCES:
+                sep_magellanic = magellanic["coords"].separation(source_coords)
+                if sep_magellanic.value <= magellanic["radius"]:
+                    logger.debug("Skipping {} as it is within the {}".format(i, magellanic["name"]))
+                    in_magellanic = True
+
+            if in_magellanic:
+                catalogue[i]["S200"] = np.nan
+                continue
+
 
         if not np.isnan(row["alpha_c"]):
 

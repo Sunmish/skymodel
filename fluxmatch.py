@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 
 import sparse_grid_interpolator
 reload(sparse_grid_interpolator)
@@ -11,10 +12,12 @@ from astropy import units as u
 
 from skymodel.fitting import cpowerlaw, powerlaw
 
+from scipy.optimize import curve_fit
+
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 import matplotlib as mpl
 mpl.use("Agg")
@@ -104,6 +107,95 @@ def nsrc_cut(table, flux_key, indices, nsrc_max, ratios):
 
     return ratios, indices
 
+
+def quadratic2d(xy, c0, c1, c2, c3, c4, c5):
+    return (c0
+            + c1*xy[0]
+            + c2*xy[1] 
+            + c3*np.power(xy[0], 2) 
+            + c4*xy[0]*xy[1] 
+            + c5*np.power(xy[1], 2)
+            ) 
+
+def poly2d_4th(xy, *c):
+    x = xy[0]
+    y = xy[1]
+    return (c[0]
+            + c[1]*x
+            + c[2]*y 
+            + c[3]*np.power(x, 2) 
+            + c[4]*x*y 
+            + c[5]*np.power(y, 2)
+            + c[6]*x**3
+            + c[7]*(x**2)*y
+            + c[8]*(y**2)*x
+            + c[9]*y**3
+            # + c[10]*x**4
+            # + c[11]*(x**3)*y
+            # + c[12]*(x**2)*(y**2)
+            # + c[13]*y**4
+            # + c[14]*(y**3)*x
+            ) 
+
+
+
+def fit_screen(ra, dec, ratios, fitsimage, outname, stride=10):
+    """
+    """
+
+    with fits.open(fitsimage) as ref:
+    
+
+        ra = np.asarray(ra)
+        dec = np.asarray(dec)
+        ratios = np.asarray(ratios)
+
+        w = WCS(ref[0].header).celestial
+
+        y, x = w.all_world2pix(ra, dec, 0)
+        x = x.astype("i")
+        y = y.astype("i")
+
+        f = np.full_like(np.squeeze(ref[0].data), np.nan)
+
+        params = [1.]*6
+        # params = [1.]*15
+        # params = [1.]*10
+
+        # x_scale = [1., 1.e-6, 1.e-6, 1.e-12, 1.e-12, 1.e-12, 1.e-18, 1.e-18, 1.e-18, 1.e-18]
+        popt, pcov = curve_fit(quadratic2d,
+                               xdata=np.asarray([x, y]), 
+                               ydata=ratios,
+                               p0=params,
+                               method="trf")
+
+        # function_results = "z = {} {:+g}x {:+g}y {:+g}x^2 {:+g}xy {:+g}y^2".format(
+            # popt[0], popt[1], popt[2], popt[3], popt[4], popt[5])
+        print(popt)
+        # logger.debug(function_results)
+
+        indices = np.indices(f.shape)
+
+        xi = indices[0].flatten()
+        yi = indices[1].flatten()
+        for n in range(0, len(xi)-stride, stride):
+
+            sys.stdout.write(u"\u001b[1000D" + "{:.>6.1f}%".format(100.*n/len(xi)))
+            sys.stdout.flush()
+            f[xi[n]:xi[n]+stride, yi[n]:yi[n]+stride] = quadratic2d((np.mean(range(xi[n], xi[n]+stride)), np.mean(range(yi[n], yi[n]+stride))), *popt) 
+
+        print("")
+        # # ref[0].data[indices] = screen_function(indices, *popt)
+
+        # f[indices] = quadratic2d(indices, *popt)
+
+
+        fits.writeto(outname, f, ref[0].header, overwrite=True)
+
+        # # plt.imshow(f)
+        # plt.savefig("test.png")
+
+        # sys.exit(0)
 
 
 def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
@@ -216,7 +308,7 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
 
 
 
-def correction_factor_map(image, pra, pdec, ratios, interpolation="linear",
+def correction_factor_map(image, pra, pdec, ratios, method="interp_rbf",
                           memfrac=0.5, absmem="all", outname=None,
                           smooth=0, writeout=True): 
     """
@@ -225,23 +317,37 @@ def correction_factor_map(image, pra, pdec, ratios, interpolation="linear",
 
     if writeout:
         writeout_region(pra, pdec, ratios, image.replace(".fits", "_calibrators.reg"),
-            color="magenta")
+                        color="magenta")
 
 
     if outname is None:
-        outname = image.replace(".fits", "_{}_factors.fits".format(interpolation))
+        outname = image.replace(".fits", "_{}_factors.fits".format(method))
 
-    if interpolation.lower()[:3] == "con":
-
+    if "cons" in method.lower():
+        # Take the median value for the whole map:
         factor = np.nanmedian(ratios)
-
         with fits.open(image) as f:
-
             factors = np.full_like(f[0].data, factor)
-
             fits.writeto(outname, factors, f[0].header, overwrite=True)
 
+    elif "screen" in method.lower():
+        # Fit a 2D curved surface to the calibrator sources:
+        fit_screen(pra, pdec, ratios, image, outname, stride=smooth)
+
     else:
+
+        if "rbf" in method.lower():
+            # Linear RBF interpolation:
+            interpolation = "linear"
+        elif "linear" in method.lower():
+            # Pure 2D linear interpolation:
+            interpolation = "only_linear"
+        elif "nearest" in method.lower():
+            # Nearest neighbour interpolation:
+            interpolation = "nearest"
+        else:
+            raise RuntimeError("{} not a supported method!".format(method))
+
 
         logger.info("Passing {} off to sparse_grid_interpolator...".format(image))
         rbf(image=image,
@@ -264,17 +370,26 @@ def correction_factor_map(image, pra, pdec, ratios, interpolation="linear",
 
 
 def apply_corrections(image, correction_image, outname):
-    """
+    """Apply the correction factors.
+
+    Parameters
+    ----------
+    image : str
+        FITS image filename to apply correction factors to.
+    correction_image : str
+        FITS image filename containing correction factors.
+    outname : str
+        Output FITS filename.
+    
     """
 
     im = fits.open(image)
     ref = fits.getdata(correction_image)
 
-    logger.info("Mean factor S_predic/S_meas: {}".format(np.nanmean(ref)))
+    logger.info("Mean factor S_meas/S_predic: {}".format(np.nanmean(ref)))
 
     cdata = im[0].data.copy()
     cdata /= ref
-
 
     fits.writeto(outname, cdata, im[0].header, overwrite=True)
 

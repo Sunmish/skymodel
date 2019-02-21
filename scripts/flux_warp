@@ -92,7 +92,7 @@ def main():
                                                pdec=table["dec"][indices],
                                                ratios=ratios,
                                                smooth=int(args.smooth),
-                                               interpolation=args.mode)
+                                               method=args.mode)
 
         if args.outname is None:
             args.outname = args.image.replace(".fits", "_scaled.fits")
