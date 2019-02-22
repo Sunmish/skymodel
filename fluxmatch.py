@@ -397,7 +397,7 @@ def apply_corrections(image, correction_image, outname):
 
 
 def plot(correction_image, pra, pdec, ratios, cmap="cubehelix", 
-         outname=None):
+         outname=None, plot_beam=False, beam_image=None):
     """
     """
 
@@ -435,19 +435,58 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     ax2.set_yticklabels(labels, rotation=90, va="center")
 
 
-    map_ratios = fits.getdata(correction_image).flatten()
+    if not plot_beam or beam_image is None:
 
 
-    ax3.hist([map_ratios, ratios[2]], bins=40, histtype="step",
-             color=colors, fill=False, 
-             label=["Interpolation", "Calibrators"], density=True)
-    legend = ax3.legend(loc="upper right", shadow=False, fancybox=False, frameon=True,
-                        fontsize=16, numpoints=1)
-    legend.get_frame().set_edgecolor("dimgrey")
+        map_ratios = fits.getdata(correction_image).flatten()
 
-    ax3.set_xlabel(r"$S_\mathrm{measured}/S_\mathrm{predicted}$", fontsize=font_labels)
-    ax3.yaxis.tick_right()
-    ax3.tick_params(axis="both", which="both", labelsize=16.)
+        ax3.hist([map_ratios, ratios[2]], bins=40, histtype="step",
+                 color=colors, fill=False, 
+                 label=["Interpolation", "Calibrators"], density=True)
+        legend = ax3.legend(loc="upper right", shadow=False, fancybox=False, frameon=True,
+                            fontsize=16, numpoints=1)
+        legend.get_frame().set_edgecolor("dimgrey")
+
+        ax3.set_xlabel(r"$S_\mathrm{measured}/S_\mathrm{predicted}$", fontsize=font_labels)
+        ax3.yaxis.tick_right()
+        ax3.tick_params(axis="both", which="both", labelsize=16.)
+
+    else:
+        
+        beam_map = fits.getdata(beam_image)
+        sb1 = SubplotSpec(gs, 0)
+        sp1 = sb1.get_position(figure=fig).get_points().flatten()
+        x = sp1[0]
+        gp1 = ax3.get_position().get_points().flatten() 
+        dx = gp1[2] - gp1[0]
+        sb2 = SubplotSpec(gs, 4)
+        sp2 = sb2.get_position(figure=fig).get_points().flatten()
+        y = sp2[1]
+        cbax = [x, y-0.025, dx, 0.02]
+
+        norm_beam = mpl.color.Normalize(vmin=beam_map.min(), vmax=beam_map.max())
+
+        ax3.imshow(np.squeeze(beam_map), cmap=cmap, origin="lower", aspect="auto", norm=norm_beam)
+
+        ax3.axes.get_xaxis().set_ticks([])
+        ax3.axes.get_yaxis().set_ticks([])
+
+        colorbar_axis_beam = fig.add_axes(cbax)
+        colorbar_beam = mpl.colorbar.ColorbarBase(colorbar_axis_beam, cmap=cmap, norm=norm_beam,
+                                             orientation="horizontal")
+        colorbar_beam.set_label(r"Pseudo-Stokes I response", 
+                           fontsize=20.,
+                           labelpad=0.,
+                           verticalalignment="top",
+                           horizontalalignment="center")
+        colorbar_beam.ax.tick_params(which="major",
+                                labelsize=16.,
+                                length=5.,
+                                color="black",
+                                labelcolor="black",
+                                width=1.)
+
+
 
     norm = mpl.colors.Normalize(vmin=min(ratios[2]), vmax=max(ratios[2]))
 

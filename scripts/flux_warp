@@ -39,7 +39,8 @@ def main():
     ps.add_argument("-I", "--ignore_magellanic", dest="ignore", action="store_true")
     ps.add_argument("-e", "--extrapolate", action="store_true", help=_help["e"])
     ps.add_argument("-c", "--curved", action="store_true")
-
+    ps.add_argument("-b", "--beam", "--primary_beam", dest="beam_image",
+                    default=None)
 
     args = ps.parse_args()
 
@@ -104,11 +105,17 @@ def main():
 
         if args.plot:
 
+            if args.beam_image is not None:
+                plot_beam = True
+            else:
+                plot_beam = False
+
             plot(correction_map, 
                  pra=table["ra"][indices],
                  pdec=table["dec"][indices],
-                 ratios=all_ratios
-                 )
+                 ratios=all_ratios,
+                 plot_beam=plot_beam,
+                 beam_image=args.beam_image)
 
     if no_freq:
         with fits.open(args.outname, mode="update") as f:

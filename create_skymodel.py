@@ -231,7 +231,7 @@ def create_model(catalogue, metafits, outname,  \
             for magellanic in SOURCES:
                 sep_magellanic = magellanic["coords"].separation(source_coords)
                 if sep_magellanic.value <= magellanic["radius"]:
-                    logger.debug("Skipping {} as it is within the {}".format(i, magellanic["name"]))
+                    logging.debug("Skipping {} as it is within the {}".format(i, magellanic["name"]))
                     in_magellanic = True
 
             if in_magellanic:
@@ -482,7 +482,7 @@ def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1.,
             for magellanic in SOURCES:
                 sep_magellanic = magellanic["coords"].separation(source_coords)
                 if sep_magellanic.value <= magellanic["radius"]:
-                    logger.debug("Skipping {} as it is within the {}".format(i, magellanic["name"]))
+                    logging.debug("Skipping {} as it is within the {}".format(i, magellanic["name"]))
                     in_magellanic = True
 
             if in_magellanic:
