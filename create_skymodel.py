@@ -472,24 +472,7 @@ def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1.,
 
         row = catalogue[i]
 
-        if ignore_magellanic:
-
-            in_magellanic = False
-            source_coords = SkyCoord(ra=catalogue["ra"][i],
-                                     dec=catalogue["dec"][i],
-                                     unit=(u.deg, u.deg))
-
-            for magellanic in SOURCES:
-                sep_magellanic = magellanic["coords"].separation(source_coords)
-                if sep_magellanic.value <= magellanic["radius"]:
-                    logging.debug("Skipping {} as it is within the {}".format(i, magellanic["name"]))
-                    in_magellanic = True
-
-            if in_magellanic:
-                catalogue[i]["S200"] = np.nan
-                continue
-
-
+    
         if not np.isnan(row["alpha_c"]):
 
             catalogue[i]["S200"] = fitting.cpowerlaw(freq,
@@ -557,6 +540,21 @@ def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1.,
 
             else:
                 logging.debug("{} not within exclude coords".format(i))
+
+
+        if ignore_magellanic:
+# 
+            in_magellanic = False
+            
+            for magellanic in SOURCES:
+                sep_magellanic = magellanic["coords"].separation(coords[i])
+                if sep_magellanic.value <= magellanic["radius"]:
+                    logging.debug("Skipping {} as it is within the {}".format(i, magellanic["name"]))
+                    in_magellanic = True
+
+            if in_magellanic:
+                catalogue[i]["S200"] = np.nan
+                continue
 
     catalogue = catalogue[np.isfinite(catalogue.field("S200"))]
 
