@@ -41,6 +41,9 @@ def main():
     ps.add_argument("-c", "--curved", action="store_true")
     ps.add_argument("-b", "--beam", "--primary_beam", dest="beam_image",
                     default=None)
+    ps.add_argument("-R", "--radius", default=None, type=float)
+    ps.add_argument("-C", "--circle_coords", "--coords", dest="coords", nargs=2,
+                    type=float, default=None)
 
     args = ps.parse_args()
 
@@ -115,7 +118,10 @@ def main():
                  pdec=table["dec"][indices],
                  ratios=all_ratios,
                  plot_beam=plot_beam,
-                 beam_image=args.beam_image)
+                 beam_image=args.beam_image,
+                 radius=args.radius,
+                 ra=args.coords[0],
+                 dec=args.coords[1])
 
     if no_freq:
         with fits.open(args.outname, mode="update") as f:

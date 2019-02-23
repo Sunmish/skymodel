@@ -117,25 +117,25 @@ def quadratic2d(xy, c0, c1, c2, c3, c4, c5):
             + c5*np.power(xy[1], 2)
             ) 
 
-def poly2d_4th(xy, *c):
-    x = xy[0]
-    y = xy[1]
-    return (c[0]
-            + c[1]*x
-            + c[2]*y 
-            + c[3]*np.power(x, 2) 
-            + c[4]*x*y 
-            + c[5]*np.power(y, 2)
-            + c[6]*x**3
-            + c[7]*(x**2)*y
-            + c[8]*(y**2)*x
-            + c[9]*y**3
-            # + c[10]*x**4
-            # + c[11]*(x**3)*y
-            # + c[12]*(x**2)*(y**2)
-            # + c[13]*y**4
-            # + c[14]*(y**3)*x
-            ) 
+# def poly2d_4th(xy, *c):
+#     x = xy[0]
+#     y = xy[1]
+#     return (c[0]
+#             + c[1]*x
+#             + c[2]*y 
+#             + c[3]*np.power(x, 2) 
+#             + c[4]*x*y 
+#             + c[5]*np.power(y, 2)
+#             + c[6]*x**3
+#             + c[7]*(x**2)*y
+#             + c[8]*(y**2)*x
+#             + c[9]*y**3
+#             # + c[10]*x**4
+#             # + c[11]*(x**3)*y
+#             # + c[12]*(x**2)*(y**2)
+#             # + c[13]*y**4
+#             # + c[14]*(y**3)*x
+#             ) 
 
 
 
@@ -159,20 +159,12 @@ def fit_screen(ra, dec, ratios, fitsimage, outname, stride=10):
         f = np.full_like(np.squeeze(ref[0].data), np.nan)
 
         params = [1.]*6
-        # params = [1.]*15
-        # params = [1.]*10
-
-        # x_scale = [1., 1.e-6, 1.e-6, 1.e-12, 1.e-12, 1.e-12, 1.e-18, 1.e-18, 1.e-18, 1.e-18]
         popt, pcov = curve_fit(quadratic2d,
                                xdata=np.asarray([x, y]), 
                                ydata=ratios,
                                p0=params,
                                method="trf")
-
-        # function_results = "z = {} {:+g}x {:+g}y {:+g}x^2 {:+g}xy {:+g}y^2".format(
-            # popt[0], popt[1], popt[2], popt[3], popt[4], popt[5])
         print(popt)
-        # logger.debug(function_results)
 
         indices = np.indices(f.shape)
 
@@ -182,20 +174,14 @@ def fit_screen(ra, dec, ratios, fitsimage, outname, stride=10):
 
             sys.stdout.write(u"\u001b[1000D" + "{:.>6.1f}%".format(100.*n/len(xi)))
             sys.stdout.flush()
-            f[xi[n]:xi[n]+stride, yi[n]:yi[n]+stride] = quadratic2d((np.mean(range(xi[n], xi[n]+stride)), np.mean(range(yi[n], yi[n]+stride))), *popt) 
+            f[xi[n]:xi[n]+stride, yi[n]:yi[n]+stride] = \
+                quadratic2d((np.mean(range(xi[n], xi[n]+stride)), 
+                             np.mean(range(yi[n], yi[n]+stride))), *popt) 
 
         print("")
-        # # ref[0].data[indices] = screen_function(indices, *popt)
-
-        # f[indices] = quadratic2d(indices, *popt)
 
 
         fits.writeto(outname, f, ref[0].header, overwrite=True)
-
-        # # plt.imshow(f)
-        # plt.savefig("test.png")
-
-        # sys.exit(0)
 
 
 def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
@@ -397,17 +383,20 @@ def apply_corrections(image, correction_image, outname):
 
 
 def plot(correction_image, pra, pdec, ratios, cmap="cubehelix", 
-         outname=None, plot_beam=False, beam_image=None):
+         outname=None, plot_beam=False, beam_image=None, radius=None,
+         ra=None, dec=None):
     """
     """
 
-    cmap = plt.get_cmap(cmap, 11)
-    colors = [cmap(2), cmap(7)]
+    cmap = plt.get_cmap(cmap, 21)
+    beam_cmap = plt.get_cmap(cmap, 11)
+    colors = [cmap(4), cmap(14)]
 
+    circle_color = "cyan"
 
     plt.close("all")
     
-    font_labels = 20.
+    font_labels = 18.
     font_ticks = 16.
     R = 1.
 
@@ -415,7 +404,7 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     figsize = (12, 8)
     fig = plt.figure(figsize=figsize)
 
-    gs = GridSpec(2, 3, wspace=0.08*R, hspace=0.12, left=0.02*R, 
+    gs = GridSpec(2, 3, wspace=0.08*R, hspace=0.22, left=0.02*R, 
                   right=1-0.1*R, top=0.95, bottom=0.15)
 
 
@@ -434,6 +423,23 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     labels[2] = r"$N_{\mathrm{src}}$ cut"
     ax2.set_yticklabels(labels, rotation=90, va="center")
 
+    ax2.set_xlabel(r"$S_\mathrm{measured}/S_\mathrm{predicted}$",
+        fontsize=font_labels)
+
+
+    wcs = WCS(fits.getheader(correction_image)).celestial
+
+    if radius is not None and ra is not None and dec is not None:
+        hdr = fits.getheader(correction_image)
+        try:
+            cd1 = abs(hdr["CD1_1"])
+        except KeyError:
+            cd1 = abs(hdr["CDELT1"])
+
+        circle_size = int(radius/cd1)
+        ra_pix, dec_pix = wcs.all_world2pix(ra, dec, 0)
+        c1 = plt.Circle((ra_pix, dec_pix), circle_size, color=circle_color, fill=False, linewidth=2)
+        c3 = plt.Circle((ra_pix, dec_pix), circle_size, color=circle_color, fill=False, linewidth=2)
 
     if not plot_beam or beam_image is None:
 
@@ -452,40 +458,42 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
         ax3.tick_params(axis="both", which="both", labelsize=16.)
 
     else:
-        
+
         beam_map = fits.getdata(beam_image)
-        sb1 = SubplotSpec(gs, 0)
+        sb1 = SubplotSpec(gs, 5)
         sp1 = sb1.get_position(figure=fig).get_points().flatten()
         x = sp1[0]
-        gp1 = ax3.get_position().get_points().flatten() 
-        dx = gp1[2] - gp1[0]
-        sb2 = SubplotSpec(gs, 4)
+        dx = sp1[2] - x
+        sb2 = SubplotSpec(gs, 5)
         sp2 = sb2.get_position(figure=fig).get_points().flatten()
         y = sp2[1]
+
+
         cbax = [x, y-0.025, dx, 0.02]
 
-        norm_beam = mpl.color.Normalize(vmin=beam_map.min(), vmax=beam_map.max())
+        norm_beam = mpl.colors.Normalize(vmin=np.nanmin(beam_map), vmax=np.nanmax(beam_map))
 
-        ax3.imshow(np.squeeze(beam_map), cmap=cmap, origin="lower", aspect="auto", norm=norm_beam)
+        ax3.imshow(np.squeeze(beam_map), cmap=beam_cmap, origin="lower", aspect="auto", norm=norm_beam)
 
         ax3.axes.get_xaxis().set_ticks([])
         ax3.axes.get_yaxis().set_ticks([])
 
         colorbar_axis_beam = fig.add_axes(cbax)
-        colorbar_beam = mpl.colorbar.ColorbarBase(colorbar_axis_beam, cmap=cmap, norm=norm_beam,
+        colorbar_beam = mpl.colorbar.ColorbarBase(colorbar_axis_beam, cmap=beam_cmap, norm=norm_beam,
                                              orientation="horizontal")
-        colorbar_beam.set_label(r"Pseudo-Stokes I response", 
-                           fontsize=20.,
+        beam_label = r"Model Stokes I attenuation"
+        colorbar_beam.set_label(beam_label, 
+                           fontsize=font_labels,
                            labelpad=0.,
                            verticalalignment="top",
                            horizontalalignment="center")
         colorbar_beam.ax.tick_params(which="major",
-                                labelsize=16.,
+                                labelsize=font_ticks,
                                 length=5.,
                                 color="black",
                                 labelcolor="black",
                                 width=1.)
-
+        ax3.add_artist(c3)
 
 
     norm = mpl.colors.Normalize(vmin=min(ratios[2]), vmax=max(ratios[2]))
@@ -501,8 +509,7 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     y = sp2[1]
     cbax = [x, y-0.025, dx, 0.02]
 
-    wcs = WCS(fits.getheader(correction_image)).celestial
-
+    
 
     
     apl.imshow(np.squeeze(fits.getdata(correction_image)), cmap=cmap, norm=norm,
@@ -510,7 +517,7 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
 
     x, y = wcs.all_world2pix(pra, pdec, 0)
 
-    apl.scatter(x, y, c=ratios[2], edgecolors="magenta", s=100, marker="o", 
+    apl.scatter(x, y, c=ratios[2], edgecolors=circle_color, s=100, marker="o", 
                 norm=norm, cmap=cmap)
 
     apl.axes.get_xaxis().set_ticks([])
@@ -521,16 +528,19 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     colorbar = mpl.colorbar.ColorbarBase(colorbar_axis, cmap=cmap, norm=norm,
                                          orientation="horizontal")
     colorbar.set_label(r"$S_\mathrm{measured}/S_\mathrm{predicted}$", 
-                       fontsize=20.,
+                       fontsize=font_labels,
                        labelpad=0.,
                        verticalalignment="top",
                        horizontalalignment="center")
     colorbar.ax.tick_params(which="major",
-                            labelsize=16.,
+                            labelsize=font_ticks,
                             length=5.,
                             color="black",
                             labelcolor="black",
                             width=1.)
+
+
+    apl.add_artist(c1)
 
     if outname is None:
         outname = correction_image.replace(".fits", ".png")

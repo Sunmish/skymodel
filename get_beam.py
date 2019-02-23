@@ -126,7 +126,8 @@ def atten_source(source, t, delays, freq, alpha=-0.7):
 
 
 def make_beam_image(t, delays, freq, ra, outname=None, cmap="cubehelix", stretch="sqrt", 
-                    npix=1500, dec=-26., plot=False, return_hdu=False):
+                    npix=1500, dec=-26., plot=False, return_hdu=False,
+                    reference_image=None):
     """Make a FITS image of the psuedo-I beam response.
 
     Parameters
@@ -153,36 +154,47 @@ def make_beam_image(t, delays, freq, ra, outname=None, cmap="cubehelix", stretch
 
     """
 
-    # Initialise a FITS image:
-    hdu = fits.PrimaryHDU()
-    arr = np.full((npix, npix), 0.)
-    hdu.data = arr
+    if reference_image is None:
+        # Initialise a FITS image:
+        hdu = fits.PrimaryHDU()
+        arr = np.full((npix, npix), 0.)
+        hdu.data = arr
 
-    hdu.header["CTYPE1"] = "RA---SIN"
-    hdu.header["CTYPE2"] = "DEC--SIN"
-    hdu.header["CRVAL1"] = ra
-    hdu.header["CRVAL2"] = dec
-    hdu.header["CDELT1"] = -npix*(0.08/1500.)
-    hdu.header["CDELT2"] = npix*(0.08/1500.)
-    hdu.header["CRPIX1"] = npix//2 - 1
-    hdu.header["CRPIX2"] = npix//2 - 1
+        hdu.header["CTYPE1"] = "RA---SIN"
+        hdu.header["CTYPE2"] = "DEC--SIN"
+        hdu.header["CRVAL1"] = ra
+        hdu.header["CRVAL2"] = dec
+        hdu.header["CDELT1"] = -npix*(0.08/1500.)
+        hdu.header["CDELT2"] = npix*(0.08/1500.)
+        hdu.header["CRPIX1"] = npix//2 - 1
+        hdu.header["CRPIX2"] = npix//2 - 1
 
-    w = WCS(hdu.header)
+        hdr = hdu.header
 
+
+    else:
+        ref = fits.open(reference_image)
+        arr = np.squeeze(ref[0].data)
+        hdr = ref[0].header
+
+    w = WCS(hdr).celestial
+    
     # Now get beam values for each pixel:
-    indices = np.indices((arr.shape))
+    indices = np.indices(arr.shape)
     x = indices[0].flatten()
     y = indices[1].flatten()
 
     r, d = w.all_pix2world(x, y, 0)
-
-    hdu.data[y, x] = beam_value(r, d, t, delays, freq, return_I=True)
+    
+    stride = 2250000  # 1500*1500
+    for i in range(0, len(x), stride):   
+        arr[y[i:i+stride], x[i:i+stride]] = beam_value(r[i:i+stride], d[i:i+stride], t, delays, freq, return_I=True)
 
     if plot:
         print("Plotting not yet implemented.")  
 
     if outname is not None:
-        hdu.writeto(outname, clobber=True)
+        fits.writeto(outname, arr, hdr, overwrite=True)
     if return_hdu:
         return hdu
 
