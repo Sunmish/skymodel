@@ -108,38 +108,30 @@ def nsrc_cut(table, flux_key, indices, nsrc_max, ratios):
     return ratios, indices
 
 
-def quadratic2d(xy, c0, c1, c2, c3, c4, c5):
-    return (c0
-            + c1*xy[0]
-            + c2*xy[1] 
-            + c3*np.power(xy[0], 2) 
-            + c4*xy[0]*xy[1] 
-            + c5*np.power(xy[1], 2)
-            ) 
+class Quadratic2D():
+    def __init__(self):
+        self.p0 = [1.]*6
+    @staticmethod
+    def evaluate(xy, c0, c1, c2, c3, c4, c5):
+        return (c0
+                + c1*xy[0]
+                + c2*xy[1] 
+                + c3*np.power(xy[0], 2) 
+                + c4*xy[0]*xy[1] 
+                + c5*np.power(xy[1], 2)
+                ) 
 
-# def poly2d_4th(xy, *c):
-#     x = xy[0]
-#     y = xy[1]
-#     return (c[0]
-#             + c[1]*x
-#             + c[2]*y 
-#             + c[3]*np.power(x, 2) 
-#             + c[4]*x*y 
-#             + c[5]*np.power(y, 2)
-#             + c[6]*x**3
-#             + c[7]*(x**2)*y
-#             + c[8]*(y**2)*x
-#             + c[9]*y**3
-#             # + c[10]*x**4
-#             # + c[11]*(x**3)*y
-#             # + c[12]*(x**2)*(y**2)
-#             # + c[13]*y**4
-#             # + c[14]*(y**3)*x
-#             ) 
+class Linear2D():
+    def __init__(self):
+        self.p0 = [1.]*3
+    @staticmethod
+    def evaluate(xy, c0, c1, c2):
+        return c0 + c1*xy[0] * c2*xy[1]
 
 
 
-def fit_screen(ra, dec, ratios, fitsimage, outname, stride=10):
+def fit_screen(ra, dec, ratios, fitsimage, outname, stride=10,
+               screen=Quadratic2D):
     """
     """
 
@@ -158,8 +150,8 @@ def fit_screen(ra, dec, ratios, fitsimage, outname, stride=10):
 
         f = np.full_like(np.squeeze(ref[0].data), np.nan)
 
-        params = [1.]*6
-        popt, pcov = curve_fit(quadratic2d,
+        params = screen.p0
+        popt, pcov = curve_fit(screen.evaluate,
                                xdata=np.asarray([x, y]), 
                                ydata=ratios,
                                p0=params,
@@ -175,23 +167,24 @@ def fit_screen(ra, dec, ratios, fitsimage, outname, stride=10):
             sys.stdout.write(u"\u001b[1000D" + "{:.>6.1f}%".format(100.*n/len(xi)))
             sys.stdout.flush()
             f[xi[n]:xi[n]+stride, yi[n]:yi[n]+stride] = \
-                quadratic2d((np.mean(range(xi[n], xi[n]+stride)), 
-                             np.mean(range(yi[n], yi[n]+stride))), *popt) 
+                screen.evaluate((np.mean(range(xi[n], xi[n]+stride)), 
+                                 np.mean(range(yi[n], yi[n]+stride))), *popt) 
 
         print("")
-
 
         fits.writeto(outname, f, ref[0].header, overwrite=True)
 
 
-def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
+def fluxscale(table, freq, threshold=1., ref_flux_key="S154", spectral_index=-0.77,
               flux_key="flux", nsrc_max=100, region_file_name="table",
-              ignore_magellanic=True, extrapolate=False, curved=True):
-    """
+              ignore_magellanic=True, extrapolate=False, curved=True,
+              powerlaw_keys=["alpha_p", "beta_p"],
+              cpowerlaw_keys=["alpha_c", "beta_c", "gamma_c"],
+              ra_key="ra",
+              dec_key="dec"):
     """
 
-
-    ref_freq_key = "S{:0>3}".format(int(ref_freq))
+    """
 
     predicted_flux, indices = [], []
     ratios = []
@@ -216,32 +209,32 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
                 continue
 
 
-        if (not np.isnan(table["alpha_c"][i])) and (not extrapolate) and curved:
+        if (not np.isnan(table[cpowerlaw_keys[0]][i])) and (not extrapolate) and curved:
 
             # Use the curved power law fit:
-            f = cpowerlaw(freq, *[table[p+"_c"][i] for p in ["alpha", "beta", "gamma"]])
+            f = cpowerlaw(freq, *[table[p][i] for p in cpowerlaw_keys])
 
 
-        elif not np.isnan(table["alpha_p"][i]):
+        elif not np.isnan(table[powerlaw_keys[0]][i]):
 
             if extrapolate:
-                if not np.isnan(table[ref_freq_key][i]):
-                    f = flux_from_index(flux1=table[ref_freq_key][i], 
+                if not np.isnan(table[ref_flux_key][i]):
+                    f = flux_from_index(flux1=table[ref_flux_key][i], 
                                         freq1=ref_freq,
                                         freq2=freq, 
-                                        alpha=table["beta_p"][i])
+                                        alpha=table[powerlaw_keys[1]][i])
                 else:
                     continue
 
             else:
 
                 # Use standard power law fit:
-                f = powerlaw(freq, *[table[p+"_p"][i] for p in ["alpha", "beta"]])
+                f = powerlaw(freq, *[table[p][i] for p in powerlaw_keys])
 
 
-        elif not np.isnan(table[ref_freq_key][i]):
+        elif not np.isnan(table[ref_flux_key][i]):
 
-            f = flux_from_index(flux1=table[ref_freq_key][i],
+            f = flux_from_index(flux1=table[ref_flux_key][i],
                                 freq1=ref_freq,
                                 freq2=freq,
                                 alpha=spectral_index)
@@ -294,7 +287,7 @@ def fluxscale(table, freq, threshold=1., ref_freq=154., spectral_index=-0.77,
 
 
 
-def correction_factor_map(image, pra, pdec, ratios, method="interp_rbf",
+def correction_factor_map(image, pra, pdec, ratios, method="linear_screen",
                           memfrac=0.5, absmem="all", outname=None,
                           smooth=0, writeout=True): 
     """
@@ -309,7 +302,7 @@ def correction_factor_map(image, pra, pdec, ratios, method="interp_rbf",
     if outname is None:
         outname = image.replace(".fits", "_{}_factors.fits".format(method))
 
-    if "cons" in method.lower():
+    if "const" in method.lower():
         # Take the median value for the whole map:
         factor = np.nanmedian(ratios)
         with fits.open(image) as f:
@@ -317,8 +310,13 @@ def correction_factor_map(image, pra, pdec, ratios, method="interp_rbf",
             fits.writeto(outname, factors, f[0].header, overwrite=True)
 
     elif "screen" in method.lower():
-        # Fit a 2D curved surface to the calibrator sources:
-        fit_screen(pra, pdec, ratios, image, outname, stride=smooth)
+        if "quad" in method.lower():
+            screen = Quadratic2D()
+        elif "lin" in method.lower():
+            screen = Linear2D()
+
+        fit_screen(pra, pdec, ratios, image, outname, stride=smooth, screen=screen)
+
 
     else:
 

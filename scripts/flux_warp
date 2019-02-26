@@ -30,7 +30,7 @@ def main():
     ps.add_argument("-f", "--freq", type=float)
     ps.add_argument("-o", "--outname", type=str, default=None)
     ps.add_argument("-t", "--threshold", type=float, default=1.)
-    ps.add_argument("-r", "--ref_freq", type=float, default=154.)
+    ps.add_argument("-r", "--ref_flux_key", type=str, default="S154")
     ps.add_argument("-n", "--nmax", type=int, default=100)
     ps.add_argument("-p", "--plot", action="store_true")
     ps.add_argument("-s", "--smooth", type=float, default=0)
@@ -83,7 +83,7 @@ def main():
         ratios, indices, all_ratios = fluxscale(table=table, 
                                                 freq=args.freq,
                                                 threshold=args.threshold,
-                                                ref_freq=args.ref_freq,
+                                                ref_flux_key=args.ref_flux_key,
                                                 flux_key=args.flux_key,
                                                 nsrc_max=args.nmax,
                                                 region_file_name=args.outname.replace(".fits", ".reg"),
