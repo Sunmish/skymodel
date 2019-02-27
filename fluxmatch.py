@@ -175,7 +175,8 @@ def fit_screen(ra, dec, ratios, fitsimage, outname, stride=10,
         fits.writeto(outname, f, ref[0].header, overwrite=True)
 
 
-def fluxscale(table, freq, threshold=1., ref_flux_key="S154", spectral_index=-0.77,
+def fluxscale(table, freq, threshold=1., ref_flux_key="S154", ref_freq=154., 
+              spectral_index=-0.77,
               flux_key="flux", nsrc_max=100, region_file_name="table",
               ignore_magellanic=True, extrapolate=False, curved=True,
               powerlaw_keys=["alpha_p", "beta_p"],
@@ -217,22 +218,10 @@ def fluxscale(table, freq, threshold=1., ref_flux_key="S154", spectral_index=-0.
 
         elif not np.isnan(table[powerlaw_keys[0]][i]):
 
-            if extrapolate:
-                if not np.isnan(table[ref_flux_key][i]):
-                    f = flux_from_index(flux1=table[ref_flux_key][i], 
-                                        freq1=ref_freq,
-                                        freq2=freq, 
-                                        alpha=table[powerlaw_keys[1]][i])
-                else:
-                    continue
-
-            else:
-
-                # Use standard power law fit:
-                f = powerlaw(freq, *[table[p][i] for p in powerlaw_keys])
+            f = powerlaw(freq, *[table[p][i] for p in powerlaw_keys])
 
 
-        elif not np.isnan(table[ref_flux_key][i]):
+        elif not np.isnan(table[ref_flux_key][i]) and extrapolate:
 
             f = flux_from_index(flux1=table[ref_flux_key][i],
                                 freq1=ref_freq,
