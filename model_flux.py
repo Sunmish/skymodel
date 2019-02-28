@@ -1,14 +1,21 @@
 #!/usr/bin/env python
 
+from __future__ import print_function, division
+
 import os
 import numpy as np
 
 from .parsers import parse_ao, parse_metafits
 from .get_beam import atten_source
 
+import logging
+logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
-               curved=True):
+               curved=True, radius=360., coords=None):
     """Get total flux from aocal file. 
 
     Assume single source, and calculate the flux at a given frequency for each
@@ -42,6 +49,8 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
 
     if metafits is not None:
         t, delays, at_freq, pnt = parse_metafits(metafits)
+        if coords is None:
+            coords = pnt
     elif freq is not None:
         at_freq = freq
     else:
@@ -50,6 +59,17 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
     tflux = 0
     for source in sources:
         # First calculate the flux density at the given frequency:
+
+        # If coords are provided, check that the source is inside the given 
+        # radius - if not, set its flux to zero so it isn't included in the 
+        # model. 
+        if coords is not None:
+            seps = np.asarray([source.components[i].radec.separation(coords).value 
+                               for i in range(source.ncomponents)])
+            if (seps > radius).any():
+                logger.debug("skipping as outside of radius")
+                continue
+
         source.at_freq(freq=at_freq,
                        components=range(source.ncomponents),
                        alpha=alpha,
@@ -71,7 +91,7 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
 
 
 def prep_model(inp, metafits, threshold, outname="./all_models.txt",
-               prefix="model", exclude=None, curved=True):
+               prefix="model", exclude=None, curved=True, radius=360.):
     """Prepare a combined AO-style model, using models in a directory.
 
     Parameters
@@ -116,7 +136,8 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
         tflux = total_flux(spec, 
                            attenuate=True, 
                            metafits=metafits,
-                           curved=curved)
+                           curved=curved, 
+                           radius=radius)
         
         if tflux > threshold:
 

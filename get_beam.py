@@ -21,7 +21,7 @@ from mwapy import ephem_utils
 from mwapy.pb.primary_beam import MWA_Tile_full_EE
 
 # # Too much unnecessary output...?
-# logging.getLogger("beam_full_EE").setLevel(logging.WARNING)
+logging.getLogger("MWA_Tile_full_EE.beam_full_EE").setLevel(logging.ERROR)
 
 MWA = EarthLocation.from_geodetic(lat=-26.703319*u.deg, 
                                   lon=116.67081*u.deg, 

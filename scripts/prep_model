@@ -20,6 +20,8 @@ def main():
     ps.add_argument("-C", "--curved", dest="curved", action="store_true",
                     help="Switch on if wanting to use a curved power law model "
                          "for estimating the flux density of sources.")
+    ps.add_argument("-r", "--radius", dest="radius", default=360., type=float,
+                    help="Radius within which to include sources. [Default 360 deg]")
 
     args = ps.parse_args()
 
@@ -38,7 +40,8 @@ def main():
                outname=args.outname, 
                prefix=args.prefix,
                exclude=args.exclude,
-               curved=args.curved)
+               curved=args.curved,
+               radius=args.radius)
 
 if __name__ == "__main__":
     main()
