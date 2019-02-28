@@ -39,7 +39,12 @@ SMC = {"coords": SkyCoord(ra="00h52m38s", dec="-72d48m01s", unit=(u.hourangle, u
        "radius": 3.0,
        "name": "SMC"}
 
-SOURCES = [LMC, SMC]
+PKS0521 = {"coord": SkyCoord(ra="05h22m55.98s", dec="-36h27m36.541s", 
+                             unit=(u.hourangle, u.deg)),
+           "radius": 10./60.,
+           "name" "PKS0521"}
+
+SOURCES = [LMC, SMC, PKS0521]
 
 # ---------------------------------------------------------------------------- #
 
