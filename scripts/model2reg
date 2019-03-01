@@ -32,31 +32,41 @@ def csv(infile, color="green"):
                     f.write(ellipse_formatter(*bits[:-1]))
 
 
-def ao(infile, color="green", marker="cross"):
+def ao(infile, color="green", marker="cross", form="reg"):
     """For AO-style model files."""
 
-    outname = infile[:-4]+".reg"
+    outname = infile[:-4]+"."+form
 
     sources = parse_ao(infile)
 
     with open(outname, "w+") as f:
-        f.write("# Region file format: DS9 version 4.1\n")
-        f.write("global color={}\n".format(color))
-        f.write("fk5\n")
+
+        if form == "reg":
+            f.write("# Region file format: DS9 version 4.1\n")
+            f.write("global color={}\n".format(color))
+            f.write("fk5\n")
+
 
         for source in sources:
             for component in source.components:
-                if component.a == 0. or component.a is None:
-                    # Point source:
-                    f.write(point_formatter(ra=component.radec.ra.value,
-                                            dec=component.radec.dec.value,
-                                            marker=marker))
-                else:
-                    f.write(ellipse_formatter(ra=component.radec.ra.value,
-                                              dec=component.radec.dec.value,
-                                              a=component.a,
-                                              b=component.b,
-                                              pa=component.pa))
+        
+                if form == "reg":
+                    if component.a == 0. or component.a is None:
+                        # Point source:
+                        f.write(point_formatter(ra=component.radec.ra.value,
+                                                dec=component.radec.dec.value,
+                                                marker=marker))
+                    else:
+                        f.write(ellipse_formatter(ra=component.radec.ra.value,
+                                                  dec=component.radec.dec.value,
+                                                  a=component.a,
+                                                  b=component.b,
+                                                  pa=component.pa))
+                elif form == "csv":
+                    f.write("{},{},{},{}\n".format(component.radec.ra.value,
+                                             component.radec.dec.value,
+                                             component.flux[0],
+                                             component.freq[0]))
 
 
 
@@ -71,13 +81,14 @@ def main():
     ps.add_argument("infile")
     ps.add_argument("-m", "--marker", default="cross", type=str)
     ps.add_argument("-c", "--color", default="green", type=str)
+    ps.add_argument("-f", "--format", default="reg", type=str)
 
     args = ps.parse_args()
     
     if args.infile.endswith(".csv"):
         csv(args.infile, args.color)
     else:
-        ao(args.infile, args.color, args.marker)
+        ao(args.infile, args.color, args.marker, form=args.format)
 
 
 

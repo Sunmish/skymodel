@@ -3,7 +3,7 @@
 import sys
 
 from argparse import ArgumentParser
-from skymodel.create_skymodel import create_model, create_ns_model, get_exclusion_coords
+from skymodel.create_skymodel import create_model, create_ns_model, create_all_skymodel, get_exclusion_coords
 from skymodel.parsers import parse_metafits
 from skymodel import get_beam
 
@@ -115,20 +115,34 @@ def main():
 
     if use_ns:
         
-        create_ns_model(table=options.catalogue[1],
-                        metafits=options.metafits,
-                        outname=options.outname,
-                        alpha=-0.77,
-                        a_cut=options.threshold,
-                        s200_cut=0.0,
-                        s1400_cut=0.0,
-                        s843_cut=0.0,
-                        s150_cut=0.0,
-                        exclude_coords=exclusion_coords,
-                        exclusion_zone=1.,
-                        d_limit=(-90, 45),
-                        radius=options.radius,
-                        nmax=options.nmax)
+        # create_ns_model(table=options.catalogue[1],
+        #                 metafits=options.metafits,
+        #                 outname=options.outname,
+        #                 alpha=-0.77,
+        #                 a_cut=options.threshold,
+        #                 s200_cut=0.0,
+        #                 s1400_cut=0.0,
+        #                 s843_cut=0.0,
+        #                 s150_cut=0.0,
+        #                 exclude_coords=exclusion_coords,
+        #                 exclusion_zone=1.,
+        #                 d_limit=(-90, 45),
+        #                 radius=options.radius,
+        #                 nmax=options.nmax)
+
+        create_all_skymodel(table=options.catalogue[1],
+                            metafits=options.metafits,
+                            outname=options.outname,
+                            alpha=-0.77,
+                            threshold=options.threshold,
+                            ref_threshold=options.threshold,
+                            exclude_coords=exclusion_coords,
+                            exclusion_zone=10.,
+                            d_limit=(-90, 45),
+                            radius=options.radius,
+                            nmax=options.nmax,
+                            ref_key="S154")
+
 
     else:
 
