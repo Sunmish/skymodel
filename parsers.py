@@ -9,7 +9,7 @@ from astropy import units as u
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.INFO)
+                    level=logging.DEBUG)
 
 from . import fitting
 from .get_beam import beam_value
@@ -170,7 +170,7 @@ class Source(object):
                                      params=params)
             flux_at_freq = model(float(freq), *popt)
 
-            print popt, perr
+            print flux_at_freq
 
             self.components[c].add_freq(flux=flux_at_freq, freq=freq)
 

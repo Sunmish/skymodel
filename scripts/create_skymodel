@@ -73,6 +73,8 @@ def main():
     parser.add_argument("-C", "--curved", dest="curved", action="store_true",
                         help=help_["C"])
     parser.add_argument("-N", "--use_ns", action="store_true")
+    parser.add_argument("-a", "--alpha", "--spectral_index", "--spix", 
+                        dest="alpha", default=None)
     options = parser.parse_args()
 
 
@@ -133,7 +135,7 @@ def main():
         create_all_skymodel(table=options.catalogue[1],
                             metafits=options.metafits,
                             outname=options.outname,
-                            alpha=-0.77,
+                            alpha=options.alpha,
                             threshold=options.threshold,
                             ref_threshold=options.threshold,
                             exclude_coords=exclusion_coords,

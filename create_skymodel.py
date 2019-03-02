@@ -240,7 +240,7 @@ def create_model(catalogue, metafits, outname,  \
                     in_magellanic = True
 
             if in_magellanic:
-                catalogue[i]["S200"] = np.nan
+                GLEAM["Fintwide"][i] = 0.
                 continue
 
         tmp_flux, tmp_eflux, tmp_freq, tmp_int = [], [], [], []
