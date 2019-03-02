@@ -106,8 +106,11 @@ def main():
                 logging.info("Sidelobe above useful GLEAM data - using NS catalogue.")
                 use_ns = True
 
-    elif options.use_ns:
+    elif options.use_ns and len(options.catalogue) == 2:
         use_ns = True
+
+    else:
+        logging.info("Using GLEAM catalogue only.")
 
 
 
