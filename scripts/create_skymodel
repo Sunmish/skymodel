@@ -47,7 +47,9 @@ def main():
                   "sources within the specified model(s).",
              "C": "Enable use of a curved powerlaw model for estimating "
                   "flux density at the required frequency. By default, only "
-                  "a normal power law is used."
+                  "a normal power law is used.",
+             "A": "Limiting indices for powerlaw fits - specifically important "
+                  "where fits are performed between only two measurements."
             }
 
     parser = ArgumentParser(description=description,
@@ -74,7 +76,9 @@ def main():
                         help=help_["C"])
     parser.add_argument("-N", "--use_ns", action="store_true")
     parser.add_argument("-a", "--alpha", "--spectral_index", "--spix", 
-                        dest="alpha", default=None)
+                        dest="alpha", default=None, type=float)
+    parser.add_argument("-A", "--alpha_limits", nargs=2, default=[-2., 1.],
+                        type=float, help=help_["A"])
     options = parser.parse_args()
 
 
@@ -146,7 +150,9 @@ def main():
                             d_limit=(-90, 45),
                             radius=options.radius,
                             nmax=options.nmax,
-                            ref_key="S154")
+                            ref_key="S154",
+                            index_limits=options.alpha_limits,
+                            curved=options.curved)
 
 
     else:

@@ -607,7 +607,8 @@ def create_ns_model(table, metafits, outname=None, alpha=None, a_cut=1.,
 def create_all_skymodel(table, metafits, outname=None, alpha=None, threshold=1.,
                         ref_threshold=0., exclude_coords=None, exclusion_zone=1.,
                         d_limit=(-90, 90), radius=180., nmax=200, ref_key="S154",
-                        ignore_magellanic=False):
+                        ignore_magellanic=False, index_limits=[-3., 2.], 
+                        curved=False):
     """
     """
 
@@ -666,7 +667,7 @@ def create_all_skymodel(table, metafits, outname=None, alpha=None, threshold=1.,
 
 
 
-        if not np.isnan(row["alpha_c"]):
+        if not np.isnan(row["alpha_c"]) and curved:
 
             at_flux[i] = fitting.cpowerlaw(freq,
                                            a=row["alpha_c"],
@@ -675,9 +676,11 @@ def create_all_skymodel(table, metafits, outname=None, alpha=None, threshold=1.,
   
         elif not np.isnan(row["alpha_p"]):
 
-            at_flux[i] = fitting.powerlaw(freq,
-                                          a=row["alpha_p"],
-                                          b=row["beta_p"])
+            if index_limits[0] <= row["beta_p"] <= index_limits[1]:
+
+                at_flux[i] = fitting.powerlaw(freq,
+                                              a=row["alpha_p"],
+                                              b=row["beta_p"])
   
         elif alpha is not None:
 
