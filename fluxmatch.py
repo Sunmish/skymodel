@@ -182,7 +182,8 @@ def fluxscale(table, freq, threshold=1., ref_flux_key="S154", ref_freq=154.,
               powerlaw_keys=["alpha_p", "beta_p"],
               cpowerlaw_keys=["alpha_c", "beta_c", "gamma_c"],
               ra_key="ra",
-              dec_key="dec"):
+              dec_key="dec",
+              powerlaw_index_limits=(-2., 0.5)):
     """
 
     """
@@ -210,13 +211,15 @@ def fluxscale(table, freq, threshold=1., ref_flux_key="S154", ref_freq=154.,
                 continue
 
 
-        if (not np.isnan(table[cpowerlaw_keys[0]][i])) and (not extrapolate) and curved:
+        if (not np.isnan(table[cpowerlaw_keys[0]][i])) and curved:
 
             # Use the curved power law fit:
             f = cpowerlaw(freq, *[table[p][i] for p in cpowerlaw_keys])
 
 
         elif not np.isnan(table[powerlaw_keys[0]][i]):
+
+            if powerlaw_index_limits[0] <= table[powerlaw_keys[1]][i] <= powerlaw_index_limits[1]
 
             f = powerlaw(freq, *[table[p][i] for p in powerlaw_keys])
 
