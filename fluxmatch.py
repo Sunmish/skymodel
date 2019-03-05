@@ -219,9 +219,9 @@ def fluxscale(table, freq, threshold=1., ref_flux_key="S154", ref_freq=154.,
 
         elif not np.isnan(table[powerlaw_keys[0]][i]):
 
-            if powerlaw_index_limits[0] <= table[powerlaw_keys[1]][i] <= powerlaw_index_limits[1]
+            if powerlaw_index_limits[0] <= table[powerlaw_keys[1]][i] <= powerlaw_index_limits[1]:
 
-            f = powerlaw(freq, *[table[p][i] for p in powerlaw_keys])
+                f = powerlaw(freq, *[table[p][i] for p in powerlaw_keys])
 
 
         elif not np.isnan(table[ref_flux_key][i]) and extrapolate:
