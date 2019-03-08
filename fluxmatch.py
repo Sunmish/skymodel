@@ -111,6 +111,7 @@ def nsrc_cut(table, flux_key, indices, nsrc_max, ratios):
 class Quadratic2D():
     def __init__(self):
         self.p0 = [1.]*6
+        self.p0 = [1., 0., 0., 0., 0., 0.]
     @staticmethod
     def evaluate(xy, c0, c1, c2, c3, c4, c5):
         return (c0
@@ -123,17 +124,21 @@ class Quadratic2D():
 
 class Linear2D():
     def __init__(self):
-        self.p0 = [1.]*3
+        self.p0 = [1., 1., 1.]
     @staticmethod
     def evaluate(xy, c0, c1, c2):
         return c0 + c1*xy[0] * c2*xy[1]
 
 
 
-def fit_screen(ra, dec, ratios, fitsimage, outname, stride=10,
+def fit_screen(ra, dec, ratios, fitsimage, outname, snr=None, stride=10,
                screen=Quadratic2D):
     """
     """
+
+    if localrms is None:
+        localrms = np.full_like(ratios, 1.)
+
 
     with fits.open(fitsimage) as ref:
     
@@ -150,10 +155,14 @@ def fit_screen(ra, dec, ratios, fitsimage, outname, stride=10,
 
         f = np.full_like(np.squeeze(ref[0].data), np.nan)
 
+        print(localrms)
+
         params = screen.p0
         popt, pcov = curve_fit(screen.evaluate,
                                xdata=np.asarray([x, y]), 
                                ydata=ratios,
+                               sigma=1./snr,
+                               absolute_sigma=True,
                                p0=params,
                                method="trf")
         print(popt)
@@ -162,36 +171,85 @@ def fit_screen(ra, dec, ratios, fitsimage, outname, stride=10,
 
         xi = indices[0].flatten()
         yi = indices[1].flatten()
-        for n in range(0, len(xi)-stride, stride):
 
-            sys.stdout.write(u"\u001b[1000D" + "{:.>6.1f}%".format(100.*n/len(xi)))
-            sys.stdout.flush()
-            f[xi[n]:xi[n]+stride, yi[n]:yi[n]+stride] = \
-                screen.evaluate((np.mean(range(xi[n], xi[n]+stride)), 
-                                 np.mean(range(yi[n], yi[n]+stride))), *popt) 
+        if isinstance(screen, Quadratic2D):
 
-        print("")
+            for n in range(0, len(xi)-stride, stride):
+                sys.stdout.write(u"\u001b[1000D" + "{:.>6.1f}%".format(100.*n/len(xi)))
+                sys.stdout.flush()
+                f[xi[n]:xi[n]+stride, yi[n]:yi[n]+stride] = \
+                    screen.evaluate((np.mean(range(xi[n], xi[n]+stride)), 
+                                     np.mean(range(yi[n], yi[n]+stride))), *popt) 
+
+            print("")
+
+        elif isinstance(screen, Linear2D):
+
+            f[xi, yi] = screen.evaluate((xi, yi), *popt)
+
+        
 
         fits.writeto(outname, f, ref[0].header, overwrite=True)
 
 
-def fluxscale(table, freq, threshold=1., ref_flux_key="S154", ref_freq=154., 
+def weighted_mean(ratios, snr):
+    """
+    """
+
+    avg = np.average(ratios, weights=snr)
+
+    return avg
+
+
+
+
+def fluxscale(table, freq, 
+              threshold=1., 
+              ref_flux_key="S154", 
+              ref_freq=154., 
               spectral_index=-0.77,
-              flux_key="flux", nsrc_max=100, region_file_name="table",
-              ignore_magellanic=True, extrapolate=False, curved=True,
+              flux_key="flux", 
+              nsrc_max=100, 
+              region_file_name="table",
+              ignore_magellanic=True, 
+              extrapolate=False, 
+              curved=True,
               powerlaw_keys=["alpha_p", "beta_p"],
               cpowerlaw_keys=["alpha_c", "beta_c", "gamma_c"],
               ra_key="ra",
               dec_key="dec",
-              powerlaw_index_limits=(-2., 0.5)):
-    """
+              powerlaw_index_limits=(-2., 0.5),
+              localrms_key=None,
+              snrcut=50,
+              nmeas=20):
+    """Calculate the ratio S_meas/S_predicted for sources in a table.
 
+    This uses the model parameters for powerlaw (and optionally curved powerlaw)
+    fits to determine expected flux density values. Optionally flux densities
+    can be extrapolated using a provided spectral index (hence assuming a 
+    simple powerlaw model if a flux density measurement is available).
+
+    Parameters
+    ----------
+    table : 
+    freq : float
+        Frequency in MHz to predict fluxes.
+    threshold : float, optional
     """
 
     predicted_flux, indices = [], []
     ratios = []
 
     for i in range(len(table)):
+
+
+        if table["nmeas"][i] < nmeas:
+            # If we only want to include data that is in the GLEAM catalogue, 
+            # set nmeas >= 20.
+            logger.debug("Skipping {} as it has {} measurements".format(i, table["nmeas"][i]))
+            continue
+
+
 
         if ignore_magellanic:
 
@@ -241,6 +299,9 @@ def fluxscale(table, freq, threshold=1., ref_flux_key="S154", ref_freq=154.,
 
             ratios.append(table[flux_key][i]/f)
 
+            if localrms_key is not None:
+                # We will weight by the SNR later on if fitting.
+                table[localrms_key][i] = table[flux_key][i] / table[localrms_key][i]
 
 
     valid = np.isfinite(ratios)
@@ -275,13 +336,18 @@ def fluxscale(table, freq, threshold=1., ref_flux_key="S154", ref_freq=154.,
 
     logger.info("Number of calibrators: {}".format(len(p_indices)))
 
-    return p_ratios, p_indices, all_ratios
+    if localrms_key is not None:
+        localrms = table[localrms_key][p_indices]
+    else:
+        localrms = np.full_like(p_indices, 1.)
+
+    return p_ratios, p_indices, all_ratios, localrms
 
 
 
 def correction_factor_map(image, pra, pdec, ratios, method="linear_screen",
                           memfrac=0.5, absmem="all", outname=None,
-                          smooth=0, writeout=True): 
+                          smooth=0, writeout=True, snr=None): 
     """
     """
 
@@ -294,12 +360,23 @@ def correction_factor_map(image, pra, pdec, ratios, method="linear_screen",
     if outname is None:
         outname = image.replace(".fits", "_{}_factors.fits".format(method))
 
-    if "const" in method.lower():
+    if "median" in method.lower():
         # Take the median value for the whole map:
         factor = np.nanmedian(ratios)
         with fits.open(image) as f:
             factors = np.full_like(f[0].data, factor)
             fits.writeto(outname, factors, f[0].header, overwrite=True)
+
+    if "mean" in method.lower():
+        # Take the SNR-weight mean value (good only if sigma clipped!)
+        if snr is None:
+            snr = np.full_like(ratios, 1.)
+
+        factor = weighted_mean(ratios, snr)
+        with fits.open(image) as f:
+            factors = np.full_like(f[0].data, factor)
+            fits.writeto(outname, factors, f[0].header, overwrite=True)
+
 
     elif "screen" in method.lower():
         if "quad" in method.lower():
@@ -307,7 +384,11 @@ def correction_factor_map(image, pra, pdec, ratios, method="linear_screen",
         elif "lin" in method.lower():
             screen = Linear2D()
 
-        fit_screen(pra, pdec, ratios, image, outname, stride=smooth, screen=screen)
+        if snr is None:
+            snr = np.full_like(ratios, 1.)
+
+        fit_screen(pra, pdec, ratios, image, outname, snr, 
+                   stride=smooth, screen=screen)
 
 
     else:
@@ -377,6 +458,10 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
          ra=None, dec=None):
     """
     """
+
+    correction_map = np.squeeze(fits.getdata(correction_image))
+    correction_factor_mean = np.nanmean(correction_map)
+
 
     cmap = plt.get_cmap(cmap, 21)
     beam_cmap = plt.get_cmap(cmap, 11)
@@ -502,7 +587,7 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     
 
     
-    apl.imshow(np.squeeze(fits.getdata(correction_image)), cmap=cmap, norm=norm,
+    apl.imshow(correction_map, cmap=cmap, norm=norm,
                origin="lower", aspect="auto")
 
     x, y = wcs.all_world2pix(pra, pdec, 0)
@@ -512,6 +597,12 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
 
     apl.axes.get_xaxis().set_ticks([])
     apl.axes.get_yaxis().set_ticks([])
+
+    # apl.text(0.05, 0.95,
+    #          r"$\bar{S_\mathrm{measured}/ S_\mathrm{predicted}} = " + "{:.2}".format(correction_factor_mean) + r"$",
+    #          va="center", ha="left",
+    #          fontsize=18.,
+    #          transform=apl.transAxes)
 
 
     colorbar_axis = fig.add_axes(cbax)
