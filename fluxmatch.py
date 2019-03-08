@@ -136,8 +136,8 @@ def fit_screen(ra, dec, ratios, fitsimage, outname, snr=None, stride=10,
     """
     """
 
-    if localrms is None:
-        localrms = np.full_like(ratios, 1.)
+    if snr is None:
+        snr = np.full_like(ratios, 1.)
 
 
     with fits.open(fitsimage) as ref:
@@ -154,8 +154,6 @@ def fit_screen(ra, dec, ratios, fitsimage, outname, snr=None, stride=10,
         y = y.astype("i")
 
         f = np.full_like(np.squeeze(ref[0].data), np.nan)
-
-        print(localrms)
 
         params = screen.p0
         popt, pcov = curve_fit(screen.evaluate,
@@ -235,6 +233,7 @@ def fluxscale(table, freq,
     freq : float
         Frequency in MHz to predict fluxes.
     threshold : float, optional
+    
     """
 
     predicted_flux, indices = [], []

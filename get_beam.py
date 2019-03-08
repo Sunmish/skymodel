@@ -171,24 +171,29 @@ def make_beam_image(t, delays, freq, ra, outname=None, cmap="cubehelix", stretch
 
         hdr = hdu.header
 
+        indices = np.indices(arr.shape)
+        x = indices[0].flatten()
+        y = indices[1].flatten()
 
     else:
         ref = fits.open(reference_image)
-        arr = np.squeeze(ref[0].data)
+        ref_arr = np.squeeze(ref[0].data)
         hdr = ref[0].header
+        arr = np.full_like(ref_arr, 0.)
+
+        indices = np.where(~np.isnan(ref_arr))
+        y = indices[0].flatten()
+        x = indices[1].flatten()
 
     w = WCS(hdr).celestial
     
-    # Now get beam values for each pixel:
-    indices = np.indices(arr.shape)
-    x = indices[0].flatten()
-    y = indices[1].flatten()
-
-    r, d = w.all_pix2world(x, y, 0)
+    # Now get beam values for each pixel:    
+    
     
     stride = 2250000  # 1500*1500
-    for i in range(0, len(x), stride):   
-        arr[y[i:i+stride], x[i:i+stride]] = beam_value(r[i:i+stride], d[i:i+stride], t, delays, freq, return_I=True)
+    for i in range(0, len(x), stride):
+        r, d = w.all_pix2world(x[i:i+stride], y[i:i+stride], 0)   
+        arr[y[i:i+stride], x[i:i+stride]] = beam_value(r, d, t, delays, freq, return_I=True)
 
     if plot:
         print("Plotting not yet implemented.")  

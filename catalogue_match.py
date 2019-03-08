@@ -10,6 +10,12 @@ logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+DTYPE_TO_TFORM = {"f": "E",
+                  "i": "I",
+                  "S": "A"} 
+
+
+
 class Catalogue(object):
     """Easy handling of a catalogue."""
 
@@ -42,6 +48,15 @@ class Catalogue(object):
         self.flux = flux
         self.eflux = eflux
         self.local_rms = local_rms
+
+        if catalogue.endswith(".fits"):
+            self.names = self.table.columns.names
+            self.tform = [self.table.columns[name].format 
+                          for name in self.table.columns.names]
+        elif catalogue.endswith(".vot"):
+            self.names = self.table.dtype.names
+            self.tform = [DTYPE_TO_TFORM[self.table.dtype[name].kind] 
+                          for name in self.names]
 
 
     def exclude(self, exclude_coords, exclusion_zone):
@@ -142,11 +157,12 @@ def write_out(cat1, cat2, indices, outname, nmax=100):
     else:
         cut = slice(0, len(indices[:, 0]))
 
-            
-    columns_to_add = [fits.Column(name=column, format=cat2.table.columns[column].format,
-                                  array=cat2.table[column][indices[:, 1]][cut])
-                      for column in cat2.table.columns.names
-                      ]
+    columns_to_add = []
+
+    for i, column in enumerate(cat2.names):
+        if column != "local_rms":
+            columns_to_add += [fits.Column(name=column, format=cat2.tform[i],
+                                          array=cat2.table[column][indices[:, 1]][cut])]
 
 
     columns_to_add += [fits.Column(name="old_ra", format="E",
