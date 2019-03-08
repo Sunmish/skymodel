@@ -15,7 +15,8 @@ class Catalogue(object):
 
 
     def __init__(self, catalogue, ra_key, dec_key,
-                 flux=None, eflux=None):
+                 flux=None, eflux=None,
+                 local_rms=None):
         """
 
         Parameters
@@ -40,6 +41,7 @@ class Catalogue(object):
 
         self.flux = flux
         self.eflux = eflux
+        self.local_rms = local_rms
 
 
     def exclude(self, exclude_coords, exclusion_zone):
@@ -141,9 +143,9 @@ def write_out(cat1, cat2, indices, outname, nmax=100):
         cut = slice(0, len(indices[:, 0]))
 
             
-    columns_to_add = [fits.Column(name=column, format="E",
+    columns_to_add = [fits.Column(name=column, format=cat2.table.columns[column].format,
                                   array=cat2.table[column][indices[:, 1]][cut])
-                      for column in cat2.table.names
+                      for column in cat2.table.columns.names
                       ]
 
 
@@ -159,6 +161,11 @@ def write_out(cat1, cat2, indices, outname, nmax=100):
     if cat1.eflux is not None:
         columns_to_add += [fits.Column(name="eflux", format="E",
                                        array=cat1.table[cat1.eflux][indices[:, 0]][cut])]
+
+    if hasattr(cat1, "local_rms"):
+        columns_to_add += [fits.Column(name="local_rms", format="E",
+                                       array=cat1.table[cat1.local_rms][indices[:, 0]][cut])]
+
 
     if not outname.endswith(".fits"):
         outname += ".fits"
