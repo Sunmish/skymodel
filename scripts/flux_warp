@@ -31,6 +31,7 @@ def main():
     ps.add_argument("-o", "--outname", type=str, default=None)
     ps.add_argument("-t", "--threshold", type=float, default=1.)
     ps.add_argument("-r", "--ref_flux_key", type=str, default="S154")
+    ps.add_argument("-l", "--localrms_key", type=str, default=None)
     ps.add_argument("-z", "--ref_freq", type=float, default=154.)
     ps.add_argument("-n", "--nmax", type=int, default=100)
     ps.add_argument("-p", "--plot", action="store_true")
@@ -81,24 +82,26 @@ def main():
 
         logger.info("Starting to flux warp...")
 
-        ratios, indices, all_ratios = fluxscale(table=table, 
-                                                freq=args.freq,
-                                                threshold=args.threshold,
-                                                ref_flux_key=args.ref_flux_key,
-                                                ref_freq=args.ref_freq,
-                                                flux_key=args.flux_key,
-                                                nsrc_max=args.nmax,
-                                                region_file_name=args.outname.replace(".fits", ".reg"),
-                                                ignore_magellanic=args.ignore,
-                                                extrapolate=args.extrapolate,
-                                                curved=args.curved)
+        ratios, indices, all_ratios, snr = fluxscale(table=table, 
+                                                     freq=args.freq,
+                                                     threshold=args.threshold,
+                                                     ref_flux_key=args.ref_flux_key,
+                                                     ref_freq=args.ref_freq,
+                                                     flux_key=args.flux_key,
+                                                     nsrc_max=args.nmax,
+                                                     region_file_name=args.outname.replace(".fits", ".reg"),
+                                                     ignore_magellanic=args.ignore,
+                                                     extrapolate=args.extrapolate,
+                                                     curved=args.curved,
+                                                     localrms_key=args.localrms_key)
 
         correction_map = correction_factor_map(image=args.image,
                                                pra=table["ra"][indices],
                                                pdec=table["dec"][indices],
                                                ratios=ratios,
                                                smooth=int(args.smooth),
-                                               method=args.mode)
+                                               method=args.mode,
+                                               snr=snr)
 
         if args.outname is None:
             args.outname = args.image.replace(".fits", "_scaled.fits")
