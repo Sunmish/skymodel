@@ -66,6 +66,7 @@ def main():
     ps.add_argument("-F", "--flux", type=str, default="int_flux", help=help_["F"])
     ps.add_argument("-E", "--eflux", type=str, default="err_int_flux", 
                     help=help_["E"])
+    ps.add_argument("-l", "--local_rms", type=str, default="local_rms")
     ps.add_argument("-c", "--coords", type=float, nargs=2)
     ps.add_argument("-S", "--radius", type=float, default=10.0)
 
@@ -73,7 +74,8 @@ def main():
 
 
     logger.debug("Opening cat1 {}".format(args.catalogue1))
-    cat1 = Catalogue(args.catalogue1, ra_key=args.ra1, dec_key=args.dec1, flux=args.flux, eflux=args.eflux)
+    cat1 = Catalogue(args.catalogue1, ra_key=args.ra1, dec_key=args.dec1, flux=args.flux, eflux=args.eflux,
+                     local_rms=args.local_rms)
     
     logger.debug("Opening cat2 {}".format(args.catalogue2))
     cat2 = Catalogue(args.catalogue2, ra_key=args.ra2, dec_key=args.dec2)
@@ -101,6 +103,8 @@ def main():
 
     logger.debug("Clipping cat1...")
     cat1.clip(args.threshold)
+
+    logger.info("N. sources in cat1: {}".format(len(cat1.table)))
 
     if args.separation is None:
         args.separation = 1.e30
