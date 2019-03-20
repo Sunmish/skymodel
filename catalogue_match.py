@@ -92,6 +92,16 @@ class Catalogue(object):
             self.table = self.table[self.table[self.flux] > threshold]
 
 
+    def only_compact(self, a, b, bmaj, bmin, R=1.2):
+        """
+        """
+
+        cond = np.where(((self.table[a]*self.table[b]) / (bmaj*bmin)) <  R)
+
+        self.table = self.table[cond]
+        self.coords = self.coords[cond]
+
+
 
 
     @staticmethod

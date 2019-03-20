@@ -20,6 +20,7 @@ def main():
                     help="Make a plot of the FITS file.")
     ps.add_argument("-c", "--cmap", help="Colormap to use when plotting.")
     ps.add_argument("-i", "--image", default=None)
+    ps.add_argument("-f", "--frequency", dest="freq", default=None, type=float)
 
     args = ps.parse_args()
 
@@ -28,6 +29,8 @@ def main():
 
 
     t, delays, freq, pnt = parsers.parse_metafits(args.metafits)
+    if args.freq is not None:
+        freq = args.freq
 
     get_beam.make_beam_image(t, delays, freq, 
                              ra=pnt.ra.value,

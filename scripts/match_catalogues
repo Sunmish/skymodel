@@ -15,7 +15,7 @@ from skymodel.create_skymodel import get_exclusion_coords
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 def main():
@@ -69,6 +69,11 @@ def main():
     ps.add_argument("-l", "--local_rms", type=str, default="local_rms")
     ps.add_argument("-c", "--coords", type=float, nargs=2)
     ps.add_argument("-S", "--radius", type=float, default=10.0)
+    ps.add_argument("-b1", "--beam1", type=float, nargs=2, default=None)
+    ps.add_argument("-S1", "--size1", type=str, nargs=2, default=None)
+    ps.add_argument("-b2", "--beam2", type=float, nargs=2, default=None)
+    ps.add_argument("-S2", "--size2", type=str, nargs=2, default=None)
+    ps.add_argument("--ratio", type=float, default=1.2)
 
     args = ps.parse_args()
 
@@ -79,6 +84,20 @@ def main():
     
     logger.debug("Opening cat2 {}".format(args.catalogue2))
     cat2 = Catalogue(args.catalogue2, ra_key=args.ra2, dec_key=args.dec2)
+
+    if args.beam1 is not None and args.size1 is not None:
+
+        logger.debug("Excluding sources with a*b/psfa*psfb > {} for {}".format(args.ratio, cat1.name))
+        logger.debug("len(cat1) with all sources {}".format(len(cat1.table)))
+        cat1.only_compact(args.size1[0], args.size1[1], args.beam1[0], args.beam1[1], args.ratio)
+        logger.debug("len(cat1) with compact sources {}".format(len(cat1.table)))
+
+    if args.beam2 is not None and args.size2 is not None:
+
+        logger.debug("Excluding sources with a*b/psfa*psfb > {} for {}".format(args.ratio, cat2.name))
+        logger.debug("len(cat2) with all sources {}".format(len(cat2.table)))
+        cat2.only_compact(args.size2[0], args.size2[1], args.beam2[0], args.beam2[1], args.ratio)
+        logger.debug("len(cat2) with compact sources {}".format(len(cat2.table)))
 
     if args.coords is not None:
 
