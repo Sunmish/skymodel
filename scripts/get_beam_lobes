@@ -65,13 +65,13 @@ def main():
 
     if not args.sidelobes and main_lobe is not None:
         # Main lobe:
-        print("main: {:.2f} {:+.2f} {:.2f}".format(lobes[main_lobe].ra, 
+        print("main: {:.2f} {:.2f} {:.2f}".format(lobes[main_lobe].ra, 
                                                    lobes[main_lobe].dec, 
                                                    lobes[main_lobe].maximum_size))
     if not args.mainlobe:
         for i in lobes.keys():
             if i != main_lobe:
-                print("side: {:.2f} {:+.2f} {:.2f}".format(lobes[i].ra,
+                print("side: {:.2f} {:.2f} {:.2f}".format(lobes[i].ra,
                                                            lobes[i].dec,
                                                            lobes[i].maximum_size))
 
