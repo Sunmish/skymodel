@@ -7,7 +7,7 @@ import numpy as np
 # Astopy imports:
 from astropy.io import fits
 from astropy.time import Time
-from astropy.coordinates import SkyCoord, EarthLocation, AltAz
+from astropy.coordinates import SkyCoord, EarthLocation, AltAz, FK5
 from astropy import units as u
 from astropy.wcs import WCS
 
@@ -125,8 +125,8 @@ def atten_source(source, t, delays, freq, alpha=-0.7):
 
 
 
-def make_beam_image(t, delays, freq, ra, outname=None, cmap="cubehelix", stretch="sqrt", 
-                    npix=1500, dec=-26., plot=False, return_hdu=False,
+def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", stretch="sqrt", 
+                    npix=1500, dec=None, plot=False, return_hdu=False,
                     reference_image=None):
     """Make a FITS image of the psuedo-I beam response.
 
@@ -155,6 +155,18 @@ def make_beam_image(t, delays, freq, ra, outname=None, cmap="cubehelix", stretch
     """
 
     if reference_image is None:
+
+
+        # Set RA/DEC as ALT/AZ = 90.0/180.0:
+        if ra is None or dec is None:
+            altaz = AltAz(alt=90.*u.deg, 
+                          az=180.*u.deg,
+                          obstime=t,
+                          location=MWA)
+            radec_at_zenith = altaz.transform_to(FK5)
+            ra = radec_at_zenith.ra.value
+            dec = radec_at_zenith.dec.value
+
         # Initialise a FITS image:
         hdu = fits.PrimaryHDU()
         arr = np.full((npix, npix), 0.)

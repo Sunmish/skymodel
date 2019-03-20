@@ -32,8 +32,7 @@ def main():
     if args.freq is not None:
         freq = args.freq
 
-    get_beam.make_beam_image(t, delays, freq, 
-                             ra=pnt.ra.value,
+    get_beam.make_beam_image(t, delays, freq,
                              outname=args.outname,
                              cmap=args.cmap, 
                              plot=args.plot,
