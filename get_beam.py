@@ -176,8 +176,8 @@ def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", st
         hdu.header["CTYPE2"] = "DEC--SIN"
         hdu.header["CRVAL1"] = ra
         hdu.header["CRVAL2"] = dec
-        hdu.header["CDELT1"] = -npix*(0.08/1500.)
-        hdu.header["CDELT2"] = npix*(0.08/1500.)
+        hdu.header["CDELT1"] = -(180./npix)
+        hdu.header["CDELT2"] = 180./npix
         hdu.header["CRPIX1"] = npix//2 - 1
         hdu.header["CRPIX2"] = npix//2 - 1
 
@@ -200,8 +200,6 @@ def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", st
     w = WCS(hdr).celestial
     
     # Now get beam values for each pixel:    
-    
-    
     stride = 2250000  # 1500*1500
     for i in range(0, len(x), stride):
         r, d = w.all_pix2world(x[i:i+stride], y[i:i+stride], 0)   
@@ -265,7 +263,7 @@ class Lobe(object):
         indicesx = np.array([x+1, x+1, x+1, x-1, x-1, x-1, x, x])
         indicesy = np.array([y+1, y-1, y, y+1, y-1, y, y-1, y+1])
 
-        if 0. in arr[indicesx, indicesy]:
+        if 0 in arr[indicesx, indicesy]:
             return True
         else:
             return False

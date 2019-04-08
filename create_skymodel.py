@@ -55,6 +55,13 @@ def gaussian_formatter(name, ra, dec, major, minor, pa, freq, flux, precision=3)
     """
 
 
+    try:
+        freq = [f for f in freq]
+    except TypeError:
+        freq = [freq]
+        flux = [flux]
+
+
     measurements = ""
     for i in range(len(freq)):
         measurements += "       measurement {{\n" \

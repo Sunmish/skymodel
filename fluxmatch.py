@@ -462,8 +462,8 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     correction_factor_mean = np.nanmean(correction_map)
 
 
+    beam_cmap = plt.get_cmap(cmap+"_r", 11)  # use the reverse so that it mirrors the corrections
     cmap = plt.get_cmap(cmap, 21)
-    beam_cmap = plt.get_cmap(cmap, 11)
     colors = [cmap(4), cmap(14)]
 
     circle_color = "cyan"
@@ -597,13 +597,6 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     apl.axes.get_xaxis().set_ticks([])
     apl.axes.get_yaxis().set_ticks([])
 
-    # apl.text(0.05, 0.95,
-    #          r"$\bar{S_\mathrm{measured}/ S_\mathrm{predicted}} = " + "{:.2}".format(correction_factor_mean) + r"$",
-    #          va="center", ha="left",
-    #          fontsize=18.,
-    #          transform=apl.transAxes)
-
-
     colorbar_axis = fig.add_axes(cbax)
     colorbar = mpl.colorbar.ColorbarBase(colorbar_axis, cmap=cmap, norm=norm,
                                          orientation="horizontal")
@@ -623,7 +616,7 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     apl.add_artist(c1)
 
     if outname is None:
-        outname = correction_image.replace(".fits", ".png")
+        outname = correction_image.replace(".fits", ".eps")
 
     fig.savefig(outname, dpi=300, bbox_inches="tight")
 

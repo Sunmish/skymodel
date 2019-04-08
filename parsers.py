@@ -189,12 +189,12 @@ def parse_ao(aofile):
     
             if found_component and found_source:
 
-                if "frequency" in line:
+                if "frequency" in line.lower():
                 
                     freq.append(float(line.split()[1])*1.e6)
                     flux.append(float(lines[i+1].split()[2]))
 
-                    if "spectral-index" in lines[i+2]:
+                    if "spectral-index" in lines[i+2].lower():
                         alpha = float(lines[i+2].split()[2])
                 
                     if "}" in lines[i+2] and "}" in lines[i+3]:
@@ -202,7 +202,7 @@ def parse_ao(aofile):
                         source.add_component(ra, dec, flux, freq, a, b, pa, alpha)
                         found_component = False
 
-            elif "name" in line:
+            elif "name" in line.lower():
                 
                 if found_source:
                     sources.append(source)
@@ -212,11 +212,11 @@ def parse_ao(aofile):
                 source = Source(name)
                 found_source = True
 
-            elif "component" in line and found_source:
+            elif "component" in line.lower() and found_source:
 
                 found_component = True
                 for j in [2, 3]:
-                    if "position" in lines[i+j]:  
+                    if "position" in lines[i+j].lower():  
                         ra = lines[i+j].split()[1]
                         dec = lines[i+j].split()[2].strip("\n")
                 logging.debug("Found component at {}, {}".format(ra, dec))
@@ -225,11 +225,12 @@ def parse_ao(aofile):
 
                 a = b = pa = None
 
-                if "gaussian" in lines[i+1]:
+                if "gaussian" in lines[i+1].lower():
                     # Record the major and minor axes as well as the pa:
                     for j in [2, 3]:
                         if "shape" in lines[i+j]:
                             _, a, b, pa = lines[i+j].split()
+                            
                     
 
 

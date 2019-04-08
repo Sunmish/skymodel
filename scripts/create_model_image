@@ -69,6 +69,7 @@ def main():
     restore_ps.add_argument("-r", "--restore", action="store_true", help=help_["r"])
     restore_ps.add_argument("-M", "--major", type=float, default=None, help=help_["M"])
     restore_ps.add_argument("-m", "--minor", type=float, default=None, help=help_["m"])
+    restore_ps.add_argument("-P", "--pa", type=float, default=0.)
     restore_ps.add_argument("-R", "--rms", type=float, default=None, help=help_["R"])
 
     args = ps.parse_args()
@@ -137,7 +138,7 @@ def main():
                                 component.radec.dec.value,
                                 component.a/3600.,
                                 component.b/3600.,
-                                0.,
+                                component.pa,
                                 component.at_flux)
 
                     gaussians.append(gaussian)
@@ -163,6 +164,7 @@ def main():
             convolve_model(model_image=outname,
                            major=args.major,
                            minor=args.minor,
+                           pa=args.pa, 
                            rms=args.rms,
                            outname=outname.replace(".fits", "_cvl.fits"))
 
