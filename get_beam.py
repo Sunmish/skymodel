@@ -101,12 +101,12 @@ def atten_source(source, t, delays, freq, alpha=-0.7):
     ra = np.array([source.components[i].radec.ra.value for i in range(source.ncomponents)])
     dec = np.array([source.components[i].radec.dec.value for i in range(source.ncomponents)])
 
-    pseudI = beam_value(ra=ra,
-                        dec=dec,
-                        t=t,
-                        delays=delays,
-                        freq=freq,
-                        return_I=True)
+    pseudoI = beam_value(ra=ra,
+                         dec=dec,
+                         t=t,
+                         delays=delays,
+                         freq=freq,
+                         return_I=True)
 
     source.at_freq(freq=freq,
                    components=range(source.ncomponents),
