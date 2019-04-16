@@ -16,12 +16,7 @@ from scipy.spatial import distance
 
 import logging
 
-# MWA beam-related imports:
-from mwapy import ephem_utils
-from mwapy.pb.primary_beam import MWA_Tile_full_EE
-
-# # Too much unnecessary output...?
-logging.getLogger("MWA_Tile_full_EE.beam_full_EE").setLevel(logging.ERROR)
+from mwa_pb.primary_beam import MWA_Tile_full_EE
 
 MWA = EarthLocation.from_geodetic(lat=-26.703319*u.deg, 
                                   lon=116.67081*u.deg, 
@@ -89,7 +84,8 @@ def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False):
                               pixels_per_deg=10)
 
     if return_I:
-        return 0.5*(rX[0] + rY[0])
+        # TODO: check that this shouldn't be halved!
+        return (rX[0] + rY[0])
     else:
         return rX[0], rY[0]
 
@@ -105,17 +101,17 @@ def atten_source(source, t, delays, freq, alpha=-0.7):
     ra = np.array([source.components[i].radec.ra.value for i in range(source.ncomponents)])
     dec = np.array([source.components[i].radec.dec.value for i in range(source.ncomponents)])
 
-    XX, YY = beam_value(ra=ra,
+    pseudI = beam_value(ra=ra,
                         dec=dec,
                         t=t,
                         delays=delays,
-                        freq=freq)
+                        freq=freq,
+                        return_I=True)
 
     source.at_freq(freq=freq,
                    components=range(source.ncomponents),
                    alpha=alpha)
 
-    pseudoI = 0.5*(XX + YY)
     atten_flux = np.array([source.components[i].at_flux*pseudoI[i] for i in
                            range(source.ncomponents)])
 
