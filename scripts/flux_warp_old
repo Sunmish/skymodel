@@ -1,0 +1,142 @@
+#! /usr/bin/env python
+
+from argparse import ArgumentParser
+
+from astropy.io import fits
+
+from skymodel.fluxmatch import fluxscale, correction_factor_map, apply_corrections, plot
+
+import logging
+logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+def main():
+    """
+    """
+
+
+    _help = {"b": "Select band to extrapolate flux density from. Note when set" 
+                  " only powerlaw models will be used (i.e. the spectral index).",
+             "e": "Select True if wanting to only extrapolate from the "
+                  "reference frequency band."}
+
+
+    ps = ArgumentParser()
+
+
+    ps.add_argument("model_table")
+    ps.add_argument("image")
+    ps.add_argument("-f", "--freq", type=float)
+    ps.add_argument("-o", "--outname", type=str, default=None)
+    ps.add_argument("-t", "--threshold", type=float, default=1.)
+    ps.add_argument("-r", "--ref_flux_key", type=str, default="S154")
+    ps.add_argument("-l", "--localrms_key", type=str, default=None)
+    ps.add_argument("-z", "--ref_freq", type=float, default=154.)
+    ps.add_argument("-n", "--nmax", type=int, default=100)
+    ps.add_argument("-p", "--plot", action="store_true")
+    ps.add_argument("-s", "--smooth", type=float, default=0)
+    ps.add_argument("-F", "--flux_key", default="flux")
+    ps.add_argument("-i", "--interpolation", "--mode", dest="mode", default="constant")
+    ps.add_argument("-I", "--ignore_magellanic", dest="ignore", action="store_true")
+    ps.add_argument("-e", "--extrapolate", action="store_true", help=_help["e"])
+    ps.add_argument("-c", "--curved", action="store_true")
+    ps.add_argument("-b", "--beam", "--primary_beam", dest="beam_image",
+                    default=None)
+    ps.add_argument("-R", "--radius", default=None, type=float)
+    ps.add_argument("-C", "--circle_coords", "--coords", dest="coords", nargs=2,
+                    type=float, default=None)
+
+    args = ps.parse_args()
+
+    hdr = fits.getheader(args.image)
+
+    no_freq = False
+    if args.freq is None:
+        no_freq = True
+        if "FREQ" in hdr.keys():
+            args.freq = hdr["FREQ"]/1.e6
+        elif "CRVAL3" in hdr.keys() and "CTYPE3" in hdr.keys():
+            if "FREQ" in hdr["CTYPE3"]:
+                args.freq = hdr["CRVAL3"]/1.e6
+        elif "CRVAL4" in hdr.keys() and "CTYPE4" in hdr.keys():
+            if "FREQ" in hdr["CTYPE4"]:
+                args.freq = hdr["CRVAL4"]/1.e6
+        elif "CENTCHAN" in hdr:
+            args.freq = 1.28 * float(hdr["CENTCHAN"])
+        else:
+            raise ValueError("Unable to get frequency information!")
+
+
+    if args.smooth > 0:
+
+        if "CDELT1" in hdr.keys():
+            cd = abs(hdr["CDELT1"])
+        elif "CD1_1" in hdr.keys():
+            cd = abs(hdr["CD1_1"])
+
+        args.smooth /= cd 
+
+        logger.info("Smoothing over {} pixels".format(int(args.smooth)))
+
+
+    with fits.open(args.model_table) as f:
+
+        table = f[1].data
+
+        logger.info("Starting to flux warp...")
+
+        ratios, indices, all_ratios, snr = fluxscale(table=table, 
+                                                     freq=args.freq,
+                                                     threshold=args.threshold,
+                                                     ref_flux_key=args.ref_flux_key,
+                                                     ref_freq=args.ref_freq,
+                                                     flux_key=args.flux_key,
+                                                     nsrc_max=args.nmax,
+                                                     region_file_name=args.outname.replace(".fits", ".reg"),
+                                                     ignore_magellanic=args.ignore,
+                                                     extrapolate=args.extrapolate,
+                                                     curved=args.curved,
+                                                     localrms_key=args.localrms_key)
+
+        correction_map = correction_factor_map(image=args.image,
+                                               pra=table["ra"][indices],
+                                               pdec=table["dec"][indices],
+                                               ratios=ratios,
+                                               smooth=int(args.smooth),
+                                               method=args.mode,
+                                               snr=snr)
+
+        if args.outname is None:
+            args.outname = args.image.replace(".fits", "_scaled.fits")
+            logger.info("Setting output filename to {}".format(args.outname))
+
+        apply_corrections(image=args.image,
+                          correction_image=correction_map,
+                          outname=args.outname)
+
+        if args.plot:
+
+            if args.beam_image is not None:
+                plot_beam = True
+            else:
+                plot_beam = False
+
+            plot(correction_map, 
+                 pra=table["ra"][indices],
+                 pdec=table["dec"][indices],
+                 ratios=all_ratios,
+                 plot_beam=plot_beam,
+                 beam_image=args.beam_image,
+                 radius=args.radius,
+                 ra=args.coords[0],
+                 dec=args.coords[1])
+
+    if no_freq:
+        with fits.open(args.outname, mode="update") as f:
+            f[0].header["FREQ"] = args.freq*1.e6
+            f.flush()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,149 @@
+#! /usr/bin/env python
+
+from __future__ import print_function
+
+import os
+
+from argparse import ArgumentParser
+
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+
+from skymodel.catalogue_match import Catalogue, match, write_out
+from skymodel.create_skymodel import get_exclusion_coords
+
+import logging
+logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
+def main():
+    """
+    """
+
+    description = """
+    Match one catalogue to another. Coordinates from the first catalogue are
+    then stored as 'old_ra', 'old_dec', and the second catalogue's coordinates
+    are considered the true coordinates. To be used with fits_warp.py and 
+    flux_warp.
+    """
+
+    help_ = {"cat1": "The first catalogue. .vot or .fits format.",
+             "cat2": "The second catalogue. .vot or .fits format.",
+             "s": "Minimum angular separation required for match. [Default None]",
+             "z": "Exclusion zone around sources. [Default 0 deg]",
+             "x": "AO-style file with sources to exclude from output catalogue.",
+             "r1": "RA key for catalogue 1. [Default 'ra']",
+             "d1": "DEC key for catalogue 1. [Default 'dec']",
+             "r2": "RA key for catalogue 2. [Default 'ra']",
+             "d2": "DEC key for catalogue 2. [Default 'dec']",
+             "o": "Output catalogue name.",
+             "F": "Flux density column name for catalogue 1. [Default 'int_flux']",
+             "E": "Flux density error column name for catalogue 1. "
+                  "[Default 'err_int_flux']",
+             "t": "Threshold."
+             }
+
+    ps = ArgumentParser(description=description)
+
+    ps.add_argument("catalogue1", type=str)
+    ps.add_argument("catalogue2", type=str)
+
+    ps.add_argument("-s", "--separation", type=float, default=None,
+                    help=help_["s"])
+    ps.add_argument("-z", "--exclusion_zone", "--zone", dest="zone", type=float,
+                    default=0., help=help_["z"])
+    ps.add_argument("-x", "--exclude", type=str, default=None, nargs="*",
+                    help=help_["x"])
+    ps.add_argument("-o", "--outname", type=str, default=None, help=help_["o"])
+    ps.add_argument("-t", "--threshold", type=float, default=0., help=help_["t"])
+    ps.add_argument("-n", "--nmax", type=int, default=1000)
+
+    ps.add_argument("-r", "--ra1", type=str, default="ra", help=help_["r1"])
+    ps.add_argument("-d", "--dec1", type=str, default="dec", help=help_["d1"])
+    ps.add_argument("-R", "--ra2", type=str, default="ra", help=help_["r2"])
+    ps.add_argument("-D", "--dec2", type=str, default="dec", help=help_["d2"])
+    ps.add_argument("-F", "--flux", type=str, default="int_flux", help=help_["F"])
+    ps.add_argument("-E", "--eflux", type=str, default="err_int_flux", 
+                    help=help_["E"])
+    ps.add_argument("-l", "--local_rms", type=str, default="local_rms")
+    ps.add_argument("-c", "--coords", type=float, nargs=2)
+    ps.add_argument("-S", "--radius", type=float, default=10.0)
+    ps.add_argument("-b1", "--beam1", type=float, nargs=2, default=None)
+    ps.add_argument("-S1", "--size1", type=str, nargs=2, default=None)
+    ps.add_argument("-b2", "--beam2", type=float, nargs=2, default=None)
+    ps.add_argument("-S2", "--size2", type=str, nargs=2, default=None)
+    ps.add_argument("--ratio", type=float, default=1.2)
+
+    args = ps.parse_args()
+
+
+    logger.debug("Opening cat1 {}".format(args.catalogue1))
+    cat1 = Catalogue(args.catalogue1, ra_key=args.ra1, dec_key=args.dec1, flux=args.flux, eflux=args.eflux,
+                     local_rms=args.local_rms)
+    
+    logger.debug("Opening cat2 {}".format(args.catalogue2))
+    cat2 = Catalogue(args.catalogue2, ra_key=args.ra2, dec_key=args.dec2)
+
+    if args.beam1 is not None and args.size1 is not None:
+
+        logger.debug("Excluding sources with a*b/psfa*psfb > {} for {}".format(args.ratio, cat1.name))
+        logger.debug("len(cat1) with all sources {}".format(len(cat1.table)))
+        cat1.only_compact(args.size1[0], args.size1[1], args.beam1[0], args.beam1[1], args.ratio)
+        logger.debug("len(cat1) with compact sources {}".format(len(cat1.table)))
+
+    if args.beam2 is not None and args.size2 is not None:
+
+        logger.debug("Excluding sources with a*b/psfa*psfb > {} for {}".format(args.ratio, cat2.name))
+        logger.debug("len(cat2) with all sources {}".format(len(cat2.table)))
+        cat2.only_compact(args.size2[0], args.size2[1], args.beam2[0], args.beam2[1], args.ratio)
+        logger.debug("len(cat2) with compact sources {}".format(len(cat2.table)))
+
+    if args.coords is not None:
+
+        logger.debug("Excluding sources outside of {} degrees around {}".format(args.radius, args.coords))
+        coords = SkyCoord(ra=args.coords[0], dec=args.coords[1],
+                          unit=(u.deg, u.deg))
+        cat1.only_within(coords, args.radius)
+        cat2.only_within(coords, args.radius)
+
+    if args.exclude is not None:
+        
+        logger.debug("Getting exclusion coords...")
+        exclusion_coords = get_exclusion_coords(args.exclude)
+
+        logger.debug("Excluding from cat1...")
+        cat1.exclude(exclusion_coords, 10./60.)  # larger exclusion
+        
+
+
+    logger.debug("Clipping cat1...")
+    cat1.clip(args.threshold)
+
+    logger.info("N. sources in cat1: {}".format(len(cat1.table)))
+
+    if args.separation is None:
+        args.separation = 1.e30
+
+    logger.debug("Matching catalogues...")
+    indices = match(cat1, cat2, args.separation, args.zone)
+
+    logger.info("Total {} matches between {} and {}".format(len(indices), 
+                                                            cat1.name, 
+                                                            cat2.name))
+
+    if args.outname is None:
+
+        args.outname = os.path.basename(args.catalogue1).split(".")[0] + "_" + \
+                       os.path.basename(args.catalogue2).split(".")[0] + ".fits"
+        print("INFO: setting output filename to {}".format(args.outname))
+
+    write_out(cat1, cat2, indices, args.outname, nmax=args.nmax)
+
+
+if __name__ == "__main__":
+    main()
+
+
+
