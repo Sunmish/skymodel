@@ -14,8 +14,6 @@ DTYPE_TO_TFORM = {"f": "E",
                   "i": "I",
                   "S": "A"} 
 
-
-
 class Catalogue(object):
     """Easy handling of a catalogue."""
 

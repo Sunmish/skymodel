@@ -19,20 +19,6 @@ logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-import matplotlib as mpl
-mpl.use("Agg")
-import matplotlib.pyplot as plt
-
-
-from matplotlib.gridspec import GridSpec, SubplotSpec
-from matplotlib import rc
-# Without this the default font will have issues with MNRAS (being type 3)
-rc('font', **{'family':'serif', 'serif':['Times'], 'weight':'medium'})
-rc('text', usetex=True)
-
-mpl.rcParams['xtick.direction'] = 'in'
-mpl.rcParams['ytick.direction'] = 'in'
-
 
 # Coordinates from Hurley-Walker et al. 2017 and radius +0.5 degrees.
 LMC = {"coords": SkyCoord(ra="05h23m35s", dec="-69d45m22s", unit=(u.hourangle, u.deg)),
@@ -43,11 +29,11 @@ SMC = {"coords": SkyCoord(ra="00h52m38s", dec="-72d48m01s", unit=(u.hourangle, u
        "radius": 3.0,
        "name": "SMC"}
 
-SOURCES = [LMC, SMC]
+SOURCES = [LMC, SMC]  # add more sources? - anywhere that does not have a good model.
 
 
 def writeout_region(ra, dec, ratio, outname, color="green"):
-    """
+    """Write out a region file of a list of sources.
     """
 
     with open(outname, "w+") as f:
@@ -110,7 +96,6 @@ def nsrc_cut(table, flux_key, indices, nsrc_max, ratios):
 
 class Quadratic2D():
     def __init__(self):
-        self.p0 = [1.]*6
         self.p0 = [1., 0., 0., 0., 0., 0.]
     @staticmethod
     def evaluate(xy, c0, c1, c2, c3, c4, c5):
@@ -458,11 +443,24 @@ def plot(correction_image, pra, pdec, ratios, cmap="cubehelix",
     """
     """
 
+    # matplotlib imports only required here.
+    import matplotlib as mpl
+    mpl.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec, SubplotSpec
+    from matplotlib import rc
+    rc("font", **{"family":"serif", "serif":["Times"], "weight":"medium"})
+    rc("text", usetex=True)
+    plt.rcParams.update(params)
+
+    mpl.rcParams["xtick.direction"] = "in"
+    mpl.rcParams["ytick.direction"] = "in"
+
     correction_map = np.squeeze(fits.getdata(correction_image))
     correction_factor_mean = np.nanmean(correction_map)
 
 
-    beam_cmap = plt.get_cmap(cmap+"_r", 11)  # use the reverse so that it mirrors the corrections
+    beam_cmap = plt.get_cmap(cmap, 21)  # different map for beam?
     cmap = plt.get_cmap(cmap, 21)
     colors = [cmap(4), cmap(14)]
 
