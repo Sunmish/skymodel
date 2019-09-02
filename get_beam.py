@@ -274,6 +274,18 @@ class Lobe(object):
 
 
     @staticmethod
+    def peak(x, y, arr):
+        """Find peak of a set of points in a an array."""
+
+        x = x.flatten()
+        y = y.flatten()
+        a = arr[x, y].flatten()
+
+        apeak = np.where(a == np.nanmax(a))
+
+        return x[apeak], y[apeak]
+
+    @staticmethod
     def centroid(x, y, arr):
         """Find weighted centroid of a set of points."""
 
@@ -289,7 +301,7 @@ class Lobe(object):
 
 
 
-def find_lobes(hdu, perc=0.1):
+def find_lobes(hdu, perc=0.1, centroid=True):
     """Find main lobe and any sidelobes in a beam image."""
 
     w = WCS(hdu.header)  # For converting to world coordinates.
@@ -314,8 +326,14 @@ def find_lobes(hdu, perc=0.1):
         l = Lobe(x, y, arr)
         l.max_size()
         l.maximum_size = l.size * hdu.header["CDELT2"]
+        
         l.cenx, l.ceny = Lobe.centroid(x, y, arr)
-        ra, dec = Lobe.pix_to_world(l.ceny, l.cenx, w)
+        l.peakx, l.peaky = Lobe.peak(x, y, arr)
+
+        if centroid:    
+            ra, dec = Lobe.pix_to_world(l.ceny, l.cenx, w)
+        else:
+            ra, dec = Lobe.pix_to_world(l.peaky, l.peakx, w)
 
         # Avoid those pesky zero-sized arrays:
         l.ra = float(ra)
