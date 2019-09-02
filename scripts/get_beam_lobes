@@ -28,6 +28,8 @@ def main():
                     help="Switch to return only the sidelobes.")
     ps.add_argument("-M", "--mainlobe", action="store_true",
                     help="Switch to return only the mainlobe.")
+    ps.add_argument("-P", "--peak", action="store_false", dest="centroid",
+                    help="Find peak of lobes rather than centroids. [Default False]")
 
     args = ps.parse_args()
 
@@ -46,7 +48,7 @@ def main():
         hdu = fits.open(args.image)[0]
 
 
-    lobes = get_beam.find_lobes(hdu, perc=args.perc)
+    lobes = get_beam.find_lobes(hdu, perc=args.perc, centroid=args.centroid)
 
     main_lobe = None
     if args.metafits:
