@@ -70,7 +70,7 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
                 logger.debug("skipping as outside of radius")
                 continue
 
-        source.at_freq(freq=at_freq,
+        source.at_freq(freq=at_freq*1.e6,
                        components=range(source.ncomponents),
                        alpha=alpha,
                        curved=curved)
