@@ -35,6 +35,9 @@ def powerlaw(x, a, b):
     """Simple powerlaw function."""
     return a*(x**b)
 
+def powerlaw_amplitude(x0, y0, b):
+    return y0/(x0**b)
+
 
 # def upowerlaw(x, a, b, ea, eb):
 #     """Uncertainty in powerlaw calculation."""
@@ -52,6 +55,13 @@ def cpowerlaw(x, a, b, c):
     """Simple curved powerlaw function."""
     return a*(x**b)*np.exp(c*np.log(x)**2)
 
+def cpowerlaw_from_ref(x, x0, y0, b, c):
+    """
+    """
+    # return y0*((x/x0)**b) * (np.exp(c*(np.log(x)**2)) / np.exp(c*(np.log(x0)**2))) 
+
+    return y0*((x/x0)**b) * np.exp(c*(np.log(x)**2 - np.log(x0)**2))
+    
 
 # def ucpowerlaw(x, a, b, c, ea, eb, ec):
 #     """Uncertainty in simple curved powerlaw calculation."""
