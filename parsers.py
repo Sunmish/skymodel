@@ -16,6 +16,8 @@ from . import fitting
 from .get_beam import beam_value
 
 
+
+
 class Component(object):
     """Component object."""
 
@@ -139,11 +141,13 @@ class Source(object):
             if curved and len(comp.freq) > 3:
                 logging.debug("cpowerlaw with {} parameters".format(len(comp.freq)))
                 model = fitting.cpowerlaw
-                params = [comp.flux[-1], -1., 0.]
+                amp0 = fitting.powerlaw_amplitude(comp.freq[0], comp.flux[0], -1.)
+                params = [amp0, -1., 0.]
             elif len(comp.freq) > 2:
                 logging.debug("powerlaw with {} parameters".format(len(comp.freq)))
                 model = fitting.powerlaw
-                params = [comp.flux[-1], -1.]
+                amp0 = fitting.powerlaw_amplitude(comp.freq[0], comp.flux[0], -1.)
+                params = [amp0, -1.]
             elif len(comp.freq) == 2:
                 logging.debug("two-point with {} parameters".format(len(comp.freq)))
                 index = fitting.two_point_index(x1=comp.freq[0], 
