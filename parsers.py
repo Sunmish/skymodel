@@ -139,11 +139,11 @@ class Source(object):
             if curved and len(comp.freq) > 3:
                 logging.debug("cpowerlaw with {} parameters".format(len(comp.freq)))
                 model = fitting.cpowerlaw
-                params = [1., -1., 1.]
+                params = [comp.flux[-1], -1., 0.]
             elif len(comp.freq) > 2:
                 logging.debug("powerlaw with {} parameters".format(len(comp.freq)))
                 model = fitting.powerlaw
-                params = [1., -1.]
+                params = [comp.flux[-1], -1.]
             elif len(comp.freq) == 2:
                 logging.debug("two-point with {} parameters".format(len(comp.freq)))
                 index = fitting.two_point_index(x1=comp.freq[0], 
@@ -169,6 +169,7 @@ class Source(object):
                                      x=comp.freq,
                                      y=comp.flux,
                                      params=params)
+            logging.debug("popt: {}".format(popt))
             flux_at_freq = model(float(freq), *popt)
 
             self.components[c].add_freq(flux=flux_at_freq, freq=freq)
