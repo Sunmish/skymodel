@@ -8,8 +8,8 @@ import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
                     level=logging.INFO)
 
-from .get_beam import atten_source
-from .parsers import parse_ao, parse_metafits
+from skymodel.get_beam import atten_source
+from skymodel.parsers import parse_ao, parse_metafits
 
 
 def slice_ao(source, aofile, method="peel"):
