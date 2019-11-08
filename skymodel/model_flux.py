@@ -5,8 +5,9 @@ from __future__ import print_function, division
 import os
 import numpy as np
 
-from .parsers import parse_ao, parse_metafits
-from .get_beam import atten_source
+
+from skymodel.parsers import parse_ao, parse_metafits
+from skymodel.get_beam import atten_source
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
