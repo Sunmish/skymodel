@@ -3,18 +3,13 @@
 import sys
 
 from argparse import ArgumentParser
-from skymodel.create_skymodel import (create_model, 
-                                      create_ns_model, 
-                                      create_all_skymodel,
-                                      create_full_gleam_skymodel, 
-                                      get_exclusion_coords)
+from skymodel.create_skymodel import create_all_skymodel, get_exclusion_coords
 from skymodel.parsers import parse_metafits
 from skymodel import get_beam
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
                     level=logging.INFO)
-
 
 def main():
 
