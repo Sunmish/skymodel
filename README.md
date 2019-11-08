@@ -15,6 +15,13 @@ Besides the standard `python` setup for astronomy, along with `astropy`, `numpy`
 8. `peel_suggester` Given a set of AO-models and an observation, suggest to peel or not. (No consideration for bright, runner-up sources.)
 9. `prep_model` Prepare an AO-model file by combining a collection of individual AO-model files.
 
+## Installing
+After cloning the repository try the following (to install into a standard location):
+```git clone https://github.com/Sunmish/skymodel.git
+cd skymodel
+python setup.py install
+```
+
 ## References
 1. Hurley-Walker N., et al., 2017, MNRAS, 464, 1146 ([10.1093/mnras/stw2337](https://doi.org/10.1093/mnras/stw2337))
 2. Sokolowski M., et al., 2017, PASA, 34, e062 ([10.1017/pasa.2017.54](https://doi.org/10.1017/pasa.2017.54))
