@@ -7,6 +7,8 @@ from argparse import ArgumentParser
 from skymodel.parsers import parse_ao
 from skymodel.model_image import create_model, convolve_model
 
+from astropy.io import fits
+
 
 def main():
 
@@ -53,9 +55,9 @@ def main():
                         type=float, default=None, nargs=2, help=help_["c"], 
                         metavar=("RA", "DEC"))
     opt_ps.add_argument("-s", "--imsize", 
-                        type=int, default=300, help=help_["s"])
+                        type=int, default=None, help=help_["s"])
     opt_ps.add_argument("-p", "--pixsize", 
-                        type=float, default=0.002, help=help_["p"])
+                        type=float, default=None, help=help_["p"])
     opt_ps.add_argument("-f", "--freq", 
                         type=float, default=None, help=help_["f"])
     opt_ps.add_argument("-a", "--alpha", 
@@ -77,10 +79,12 @@ def main():
     if args.aofile is None:
         raise ValueError("An AO-style model file must be specified.")
 
+    crpix = None
     if args.image is not None:
         ref_hdr = fits.getheader(args.image)
         if args.coords is None:
             args.coords = [ref_hdr["CRVAL1"], ref_hdr["CRVAL2"]]
+            crpix = [ref_hdr["CRPIX1"], ref_hdr["CRPIX2"]]
         if args.imsize is None:
             args.imsize = ref_hdr["NAXIS1"]
         if args.pixsize is None:
@@ -96,6 +100,8 @@ def main():
         if args.minor is None and args.restore:
             args.minor = ref_hdr["BMIN"]*3600.
 
+    if crpix is None:
+        crpix = [args.imsize//2, args.imsize//2]
 
     for aofile in args.aofile:
 
@@ -157,7 +163,8 @@ def main():
                      pixsize=args.pixsize,
                      outname=outname,
                      gaussians=gaussians,
-                     points=points)
+                     points=points,
+                     crpix=crpix)
 
         if args.major is not None:
 

@@ -3,7 +3,11 @@
 import sys
 
 from argparse import ArgumentParser
-from skymodel.create_skymodel import create_model, create_ns_model, create_all_skymodel, get_exclusion_coords
+from skymodel.create_skymodel import (create_model, 
+                                      create_ns_model, 
+                                      create_all_skymodel,
+                                      create_full_gleam_skymodel, 
+                                      get_exclusion_coords)
 from skymodel.parsers import parse_metafits
 from skymodel import get_beam
 
@@ -49,24 +53,35 @@ def main():
                   "flux density at the required frequency. By default, only "
                   "a normal power law is used.",
              "A": "Limiting indices for powerlaw fits - specifically important "
-                  "where fits are performed between only two measurements."
+                  "where fits are performed between only two measurements.",
+             "amplitude": "Key/name for amplitude/normalization for powerlaw model.",
+             "index": "Key/name for powerlaw index.",
+             "curvature": "Key/name for powerlaw curvature.",
+             "flux0": "Key/name for reference flux.",
+             "z": "Reference frequency.",
+             "a": "Spectral index for extrapolation.",
+             "ra_key": "Key/name for RA column. [Default 'ra']",
+             "dec_key": "Key/name for DEC column. [Default 'dec']",
+
+
+
             }
 
     parser = ArgumentParser(description=description,
                             epilog=epilogue)
 
     parser.add_argument("-g", "--catalogue", "--gleam", dest="catalogue", 
-                        default=None, help=help_["g"], nargs="*")
+                        default=None, help=help_["g"])
     parser.add_argument("-m", "--metafits", dest="metafits", default=None,
                         help=help_["m"])
     parser.add_argument("-o", "--outname", dest="outname", default=None,
                         help=help_["o"])
     parser.add_argument("-t", "--threshold", dest="threshold", default=1., 
                         type=float, help=help_["t"])
-    parser.add_argument("-r", "--radius", dest="radius", default=120., 
+    parser.add_argument("-R", "--radius", dest="radius", default=120., 
                         type=float, help=help_["r"])
-    parser.add_argument("-R", "--ratio", dest="ratio", default=1.2, type=float, 
-                        help=help_["R"])
+    # parser.add_argument("-R", "--ratio", dest="ratio", default=1.2, type=float, 
+                        # help=help_["R"])
     parser.add_argument("-n", "--nmax", dest="nmax", default=100, type=int, 
                         help=help_["n"])
     parser.add_argument("-p", "--plot", action="store_true", help=help_["p"])
@@ -75,10 +90,25 @@ def main():
     parser.add_argument("-C", "--curved", dest="curved", action="store_true",
                         help=help_["C"])
     parser.add_argument("-N", "--use_ns", action="store_true")
-    parser.add_argument("-a", "--alpha", "--spectral_index", "--spix", 
-                        dest="alpha", default=None, type=float)
-    parser.add_argument("-A", "--alpha_limits", nargs=2, default=[-2., 1.],
+    parser.add_argument("--hw", "--full", dest="full", action="store_true")
+    # parser.add_argument("-a", "--alpha", "--spectral_index", "--spix", 
+                        # dest="alpha", default=None, type=float)
+    parser.add_argument("--alpha_limits", nargs=2, default=[-2., 1.],
                         type=float, help=help_["A"])
+    parser.add_argument("-A", "--amplitude", type=str, default=None, 
+                        help=help_["amplitude"])
+    parser.add_argument("-a", "--index", type=str, default=None, 
+                        help=help_["index"])
+    parser.add_argument("-c", "--curvature", "--beta", dest="curvature", type=str,
+                        default=None, help=help_["curvature"])
+    parser.add_argument("-r", "--ref_flux_key", dest="flux0", type=str, default=None,
+                        help="flux0")
+    parser.add_argument("-z", "--ref_freq", dest="freq0", type=float, default=None,
+                        help=help_["z"])
+    parser.add_argument("--spectral_index", "--alpha", dest="alpha0", 
+                        type=float, default=None, help=help_["a"])
+    parser.add_argument("--ra_key", default="ra", type=str, help=help_["ra_key"])
+    parser.add_argument("--dec_key", default="dec", type=str, help=help_["dec_key"])
     options = parser.parse_args()
 
 
@@ -94,35 +124,34 @@ def main():
     else:
         exclusion_coords = None
     
-    use_ns = False
+    # use_ns = False
 
-    if len(options.catalogue) == 2 and not options.use_ns:
-        t, delays, freq, pnt = parse_metafits(options.metafits)
-        beam_hdu = get_beam.make_beam_image(t, delays, freq, 
-                                            ra=pnt.ra.value,
-                                            return_hdu=True)
-        lobes = get_beam.find_lobes(beam_hdu)
-        for lobe in lobes.keys():
-            sep = pnt.separation(lobes[lobe].sky).value
-            if (lobes[lobe].dec+0.5*lobes[lobe].maximum_size > 30. and 
-                sep-0.5*lobes[lobe].maximum_size < options.radius):
+    # if len(options.catalogue) == 2 and not options.use_ns:
+    #     t, delays, freq, pnt = parse_metafits(options.metafits)
+    #     beam_hdu = get_beam.make_beam_image(t, delays, freq, 
+    #                                         ra=pnt.ra.value,
+    #                                         return_hdu=True)
+    #     lobes = get_beam.find_lobes(beam_hdu)
+    #     for lobe in lobes.keys():
+    #         sep = pnt.separation(lobes[lobe].sky).value
+    #         if (lobes[lobe].dec+0.5*lobes[lobe].maximum_size > 30. and 
+    #             sep-0.5*lobes[lobe].maximum_size < options.radius):
             
-                logging.info("Sidelobe above useful GLEAM data - using NS catalogue.")
-                use_ns = True
+    #             logging.info("Sidelobe above useful GLEAM data - using NS catalogue.")
+    #             use_ns = True
 
-    elif options.use_ns and len(options.catalogue) == 2:
-        use_ns = True
-
-    else:
-        logging.info("Using GLEAM catalogue only.")
-
+    # elif options.use_ns and len(options.catalogue) == 2:
+        # use_ns = True
+# 
+    # else:
+        # logging.info("Using GLEAM catalogue only.")
 
 
 
     # Exclusion zone is set to 1 arcmin around sources - as this is about the 
     # semi major axis of the 200 MHz GLEAM restoring beam.
 
-    if use_ns:
+    # if use_ns:
         
         # create_ns_model(table=options.catalogue[1],
         #                 metafits=options.metafits,
@@ -139,35 +168,58 @@ def main():
         #                 radius=options.radius,
         #                 nmax=options.nmax)
 
-        create_all_skymodel(table=options.catalogue[1],
-                            metafits=options.metafits,
-                            outname=options.outname,
-                            alpha=options.alpha,
-                            threshold=options.threshold,
-                            ref_threshold=options.threshold,
-                            exclude_coords=exclusion_coords,
-                            exclusion_zone=10.,
-                            d_limit=(-90, 45),
-                            radius=options.radius,
-                            nmax=options.nmax,
-                            ref_key="S154",
-                            index_limits=options.alpha_limits,
-                            curved=options.curved)
+    create_all_skymodel(table=options.catalogue,
+                        metafits=options.metafits,
+                        outname=options.outname,
+                        # alpha=options.alpha,
+                        threshold=options.threshold,
+                        ref_threshold=options.threshold,
+                        exclude_coords=exclusion_coords,
+                        exclusion_zone=10.,
+                        d_limit=(-90, 45),
+                        radius=options.radius,
+                        nmax=options.nmax,
+                        # ref_key="S154",
+                        index_limits=options.alpha_limits,
+                        # curved=options.curved,
+                        ignore_magellanic=True,
+                        flux0=options.flux0,
+                        freq0=options.freq0,
+                        alpha0=options.alpha0,
+                        powerlaw_amplitude=options.amplitude,
+                        powerlaw_index=options.index,
+                        powerlaw_curvature=options.curvature,
+                        ra_key=options.ra_key,
+                        dec_key=options.dec_key)
 
 
-    else:
+    # elif not options.full:
 
-        create_model(catalogue=options.catalogue[0],
-                     metafits=options.metafits, 
-                     outname=options.outname,  
-                     threshold=options.threshold, 
-                     ratio=options.ratio, 
-                     radius=options.radius, 
-                     nmax=options.nmax, 
-                     plot=options.plot, 
-                     exclude_coords=exclusion_coords, 
-                     exclusion_zone=1.)
+    #     create_model(catalogue=options.catalogue[0],
+    #                  metafits=options.metafits, 
+    #                  outname=options.outname,  
+    #                  threshold=options.threshold, 
+    #                  ratio=options.ratio, 
+    #                  radius=options.radius, 
+    #                  nmax=options.nmax, 
+    #                  plot=options.plot, 
+    #                  exclude_coords=exclusion_coords, 
+    #                  exclusion_zone=1.)
 
+    # else:
+    #     create_full_gleam_skymodel(table=options.catalogue[0],
+    #                                metafits=options.metafits,
+    #                                outname=options.outname,
+    #                                alpha=options.alpha,
+    #                                threshold=options.threshold,
+    #                                ref_threshold=0.1,
+    #                                exclude_coords=exclusion_coords,
+    #                                exclusion_zone=10.,
+    #                                radius=options.radius,
+    #                                ref_key="S_200",
+    #                                ref_freq=200.,
+    #                                ignore_magellanic=True,
+    #                                )
 
 
 if __name__ == "__main__":
