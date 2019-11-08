@@ -1,0 +1,82 @@
+#! /usr/bin/env python
+
+import numpy as np
+from argparse import ArgumentParser
+from subprocess import Popen
+import os
+
+from astropy.io import fits
+
+from skymodel.parsers import parse_obslist, parse_metafits
+from skymodel import get_beam
+
+
+FOV = {169: 11.,
+       121: 18.}
+
+
+COLORS = ["red", "dodgerblue", "magenta", "orange", "yellow", "green", "mediumpuple"]
+
+
+def main():
+
+    """
+    """
+
+    ps = ArgumentParser()
+
+    ps.add_argument("obslist")
+    ps.add_argument("-k", "--keep_metafits", action="store_true")
+    ps.add_argument("-o", "--outname", default=None)
+    ps.add_argument("--max_obsid", type=int, default=2e10)
+    ps.add_argument("--min_obsid", type=int, default=0)
+    ps.add_argument("-c", "--color", default="green", type=str)
+
+    args = ps.parse_args()
+
+    obsids, _ = parse_obslist(args.obslist)
+
+    if args.outname is None:
+        args.outname = args.obslist+".reg"
+
+    ra, dec, fovs, colors = [], [], [], []
+
+    color_index = 0
+
+    for i, obsid in enumerate(obsids):
+
+        print obsid
+        if args.min_obsid <= int(obsid) <= args.max_obsid: 
+
+            if not os.path.exists("{}.metafits".format(obsid)):
+                Popen("make_metafits.py -g {}".format(obsid), shell=True).wait()
+            t, delays, freq, pnt = parse_metafits(obsid+".metafits")
+
+            hdr = fits.getheader(obsid+".metafits")
+            cc = hdr["CENTCHAN"]
+
+            fov = FOV[cc]
+
+            if not args.keep_metafits:
+                os.remove("{}.metafits".format(obsid))
+
+            ra.append(pnt.ra.value)
+            dec.append(pnt.dec.value)
+            fovs.append(fov*2.)
+            colors.append(args.color)
+
+    with open(args.outname, "w+") as f:
+
+        for i in range(len(ra)):
+
+            f.write("fk5;circle({} {} {}) # color={}\n".format(ra[i], dec[i], fovs[i]/2.0,
+                colors[i]))
+
+
+
+
+
+
+if __name__ == "__main__":
+    main()
+
