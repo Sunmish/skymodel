@@ -2,7 +2,7 @@
 A collection of scripts to read and deal with sky models for AO calibration tools. These are mostly used for MWA data-processing. Additionally, tools to play with the MWA primary beam are packaged here as they are required for creating good sky models. This code is used extensively within the MWA Phase II Pipeline ([`piip`](https://gitlab.com/Sunmish/piip/)).
 
 ## Requirements
-Besides the standard `python` setup for astronomy, along with `astropy`, `numpy`, etc., this also requires `mwa_py` ([hosted here](https://github.com/MWATelescope/mwa_pb)) for handling the MWA primary beam, and `flux_warp` ([here](https://gitlab.com/Sunmish/flux_warp)) for source models and for a nice and shiny buildt-in all-sky model based on the GLEAM EGC (Hurley-Walker et al. 2017).  
+Besides the standard `python` setup for astronomy, along with `astropy`, `numpy`, etc., this also requires `mwa_py` ([hosted here](https://github.com/MWATelescope/mwa_pb)) for handling the MWA primary beam, and `flux_warp` ([here](https://gitlab.com/Sunmish/flux_warp)) for source models and for a nice and shiny built-in all-sky model based on the GLEAM EGC (Hurley-Walker et al. 2017).  
 
 ## Sumarised by
 1. `create_model_image` Create an image from an AO model convolved with a user-defined beam.
@@ -16,7 +16,7 @@ Besides the standard `python` setup for astronomy, along with `astropy`, `numpy`
 9. `prep_model` Prepare an AO-model file by combining a collection of individual AO-model files.
 
 ## Installing
-After cloning the repository try the following (to install into a standard location):
+To clone and install the repository to a standard locatio, try the following:
 ```
 git clone https://github.com/Sunmish/skymodel.git
 cd skymodel
