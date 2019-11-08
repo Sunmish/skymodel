@@ -12,10 +12,14 @@ logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
                     level=logging.INFO)
 
 
-from . import fitting
-from .get_beam import beam_value
+from skymodel.get_beam import beam_value
+from skymodel.model_flux import fit
 
-
+from flux_warp.models import (cpowerlaw, 
+                              cpowerlaw_amplitude, 
+                              powerlaw,
+                              from_index,
+                              two_point_index)
 
 
 class Component(object):
@@ -140,24 +144,24 @@ class Source(object):
 
             if curved and len(comp.freq) > 3:
                 logging.debug("cpowerlaw with {} parameters".format(len(comp.freq)))
-                model = fitting.cpowerlaw
-                amp0 = fitting.powerlaw_amplitude(comp.freq[0], comp.flux[0], -1.)
+                model = cpowerlaw
+                amp0 = cpowerlaw_amplitude(comp.freq[0], comp.flux[0], -1., 0.)
                 params = [amp0, -1., 0.]
             elif len(comp.freq) > 2:
                 logging.debug("powerlaw with {} parameters".format(len(comp.freq)))
-                model = fitting.powerlaw
-                amp0 = fitting.powerlaw_amplitude(comp.freq[0], comp.flux[0], -1.)
+                model = powerlaw
+                amp0 = cpowerlaw_amplitude(comp.freq[0], comp.flux[0], -1., 0.)
                 params = [amp0, -1.]
             elif len(comp.freq) == 2:
                 logging.debug("two-point with {} parameters".format(len(comp.freq)))
-                index = fitting.two_point_index(x1=comp.freq[0], 
-                                                x2=comp.freq[1],
-                                                y1=comp.flux[0],
-                                                y2=comp.flux[1])
-                flux_at_freq = fitting.from_index(x=freq,
-                                                  x1=comp.freq[0], 
-                                                  y1=comp.flux[0],
-                                                  index=index)
+                index = two_point_index(x1=comp.freq[0], 
+                                        x2=comp.freq[1],
+                                        y1=comp.flux[0],
+                                        y2=comp.flux[1])
+                flux_at_freq = from_index(x=freq,
+                                          x1=comp.freq[0], 
+                                          y1=comp.flux[0],
+                                          index=index)
                 self.components[c].add_freq(flux=flux_at_freq, freq=freq)
                 continue
             else:
@@ -169,14 +173,16 @@ class Source(object):
                 self.components[c].add_freq(flux=flux_at_freq, freq=freq)
                 continue
 
-            popt, perr = fitting.fit(f=model,
-                                     x=comp.freq,
-                                     y=comp.flux,
-                                     params=params)
+            popt, perr = fit(f=model,
+                             x=comp.freq,
+                             y=comp.flux,
+                             p0=params)
             logging.debug("popt: {}".format(popt))
             flux_at_freq = model(float(freq), *popt)
 
             self.components[c].add_freq(flux=flux_at_freq, freq=freq)
+
+
 
 
 def parse_ao(aofile):
