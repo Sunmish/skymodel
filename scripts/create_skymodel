@@ -65,9 +65,9 @@ def main():
     parser = ArgumentParser(description=description,
                             epilog=epilogue)
 
-    parser.add_argument("-g", "--catalogue", "--gleam", dest="catalogue", 
+    parser.add_argument("catalogue", 
                         default=None, help=help_["g"])
-    parser.add_argument("-m", "--metafits", dest="metafits", default=None,
+    parser.add_argument("metafits", default=None,
                         help=help_["m"])
     parser.add_argument("-o", "--outname", dest="outname", default=None,
                         help=help_["o"])
