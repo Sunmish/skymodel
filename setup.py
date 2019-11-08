@@ -6,7 +6,7 @@ import sys
 with open("README.md", "r") as f:
     long_description = f.read()
 
-if sys.verion_info[0] == 3:
+if sys.version_info[0] == 3:
     _version = ">=3.0.0"
 elif sys.version_info[0] == 2:
     _version = "<3.0.0"
@@ -30,9 +30,9 @@ scripts = [
     "scripts/get_beam_lobes",
     "scripts/get_model_flux",
     "scripts/model2reg",
-    "obs2reg",
-    "peel_suggester",
-    "prep_model",
+    "scripts/obs2reg",
+    "scripts/peel_suggester",
+    "scripts/prep_model",
 ]
 
 
