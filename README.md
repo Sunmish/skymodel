@@ -17,7 +17,8 @@ Besides the standard `python` setup for astronomy, along with `astropy`, `numpy`
 
 ## Installing
 After cloning the repository try the following (to install into a standard location):
-```git clone https://github.com/Sunmish/skymodel.git
+```
+git clone https://github.com/Sunmish/skymodel.git
 cd skymodel
 python setup.py install
 ```
