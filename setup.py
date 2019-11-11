@@ -44,7 +44,7 @@ setuptools.setup(
     description="A small package to create sky models for MWA calibration.",
     long_description=long_description,
     url="https://github.com/Sunmish/skymodel",
-    intall_requires=reqs,
+    install_requires=reqs,
     packages=["skymodel"],
     scripts=scripts,
 )
