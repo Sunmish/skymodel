@@ -13,13 +13,14 @@ logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
 
 
 from skymodel.get_beam import beam_value
-from skymodel.model_flux import fit
 
-from flux_warp.models import (cpowerlaw, 
-                              cpowerlaw_amplitude, 
-                              powerlaw,
-                              from_index,
-                              two_point_index)
+from skymodel.model_fit import (fit,
+                                cpowerlaw, 
+                                cpowerlaw_amplitude, 
+                                powerlaw,
+                                from_index,
+                                two_point_index)
+
 
 
 class Component(object):
