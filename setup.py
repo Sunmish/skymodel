@@ -19,7 +19,6 @@ reqs = [
     "scipy",
     "matplotlib"+_version,
     "psutil",
-    "mwa_pb",
     "flux_warp"
 ]
 
