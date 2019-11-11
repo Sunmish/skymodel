@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def fit(f, x, y, p0, yerr=None, return_pcov=False)
+def fit(f, x, y, p0, yerr=None, return_pcov=False):
 
     if yerr is not None:
         yerr = np.asarray(yerr)
