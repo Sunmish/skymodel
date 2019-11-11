@@ -21,12 +21,12 @@ logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
 from skymodel.get_beam import beam_value
 from skymodel.parsers import parse_metafits
 
-from flux_warp.models import cpowerlaw, cpowerlaw_amplitude, powerlaw, from_index
+from skymodel.model_fit import cpowerlaw, cpowerlaw_amplitude, powerlaw, from_index
 
 
 FREQ_LIST = np.array([76., 84., 92., 99., 107., 115., 122., 130., 143.,
                       151., 158., 166., 174., 181., 189., 197., 204., 
-                      212., 220., 227.])
+                  212., 220., 227.])
 FREQ_LIST_STR = ["076", "084", "092", "099", "107", "115", "122", "130", 
                  "143", "151", "158", "166", "174", "181", "189", "197",
                  "204", "212", "220", "227"]
