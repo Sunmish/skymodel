@@ -5,8 +5,6 @@ from __future__ import print_function, division
 import os
 import numpy as np
 
-from scipy.optimize import curve_fit
-
 from skymodel.parsers import parse_ao, parse_metafits
 from skymodel.get_beam import atten_source
 
@@ -15,26 +13,6 @@ logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-
-def fit(f, x, y, p0, yerr=None, return_pcov=False):
-
-    if yerr is not None:
-        yerr = np.asarray(yerr)
-
-    popt, pcov = curve_fit(f, np.asarray(x), np.asarray(y), p0,
-                           absolute_sigma=True,
-                           method="lm",
-                           sigma=yerr,
-                           maxfev=10000)
-
-    perr = np.sqrt(np.diag(pcov))
-
-    if return_pcov:
-        return popt, pcov
-    else:
-        return popt, perr
-
-        
 
 def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
                curved=True, radius=360., coords=None):
