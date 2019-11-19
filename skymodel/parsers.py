@@ -167,10 +167,10 @@ class Source(object):
                 continue
             else:
                 logging.debug("from-index ({}) with {} parameters".format(comp.alpha, len(comp.freq)))
-                flux_at_freq = fitting.from_index(x=freq, 
-                                                  x1=comp.freq[0], 
-                                                  y1=comp.flux[0],
-                                                  index=comp.alpha)
+                flux_at_freq = from_index(x=freq, 
+                                          x1=comp.freq[0], 
+                                          y1=comp.flux[0],
+                                          index=comp.alpha)
                 self.components[c].add_freq(flux=flux_at_freq, freq=freq)
                 continue
 
