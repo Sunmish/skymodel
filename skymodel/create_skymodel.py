@@ -182,7 +182,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
         model2 = True
     if None not in [powerlaw_index, flux0, freq0]:
         check_keys(catalogue, powerlaw_index, flux0)
-        logginf.info("evaluating models using a generic power law model from a "
+        logging.info("evaluating models using a generic power law model from a "
                     "reference frequency.")
         model3 = True
     if None not in [flux0, freq0, alpha0]:
