@@ -162,7 +162,10 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
 
     t, delays, freq, pnt = parse_metafits(metafits)
     freq /= 1.e6
-    ref_freq = float(ref_key.replace("S", ""))
+    if freq0 is None:
+        ref_freq = float(ref_key.replace("S", ""))
+    else:
+        ref_freq = freq0
 
     catalogue = fits.open(table)[1].data
 
