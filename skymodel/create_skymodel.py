@@ -389,7 +389,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                               b=catalogue[powerlaw_index][i], 
                                               c=catalogue[powerlaw_curvature][i]))
 
-                if model1 and np.isnan(at_flux[i]):
+                elif model1:
                     # Curved power law from reference measurement:
                     if not np.asarray([np.isnan(catalogue[key][i]) for key in
                         [powerlaw_index, powerlaw_curvature, flux0]]).all():
@@ -403,7 +403,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                               b=catalogue[powerlaw_index][i], 
                                               c=catalogue[powerlaw_curvature][i]))
 
-                if model2 and np.isnan(at_flux[i]):
+                elif model2:
                     # Normal power law from full model components:
                     if not np.asarray([np.isnan(catalogue[key][i]) for key in
                         [powerlaw_amplitude, powerlaw_index]]).all():
@@ -413,7 +413,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                               b=catalogue[powerlaw_index][i],
                                               c=0.))
 
-                if model3 and np.isnan(at_flux[i]):
+                elif model3:
                     # Normal power law from reference measurement:
                     if not np.asarray([np.isnan(catalogue[key][i]) for key in
                         [powerlaw_index, flux0]]).all():
@@ -427,7 +427,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                               b=catalogue[powerlaw_index][i],
                                               c=0.))
 
-                if model4 and np.isnan(at_flux[i]):
+                elif model4:
                     if not np.isnan(catalogue[flux0][i]):
 
                         flux.append(from_index(freq, 
