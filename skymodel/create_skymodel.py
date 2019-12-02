@@ -153,6 +153,9 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
     """
 
 
+    if flux0 is not None:
+        ref_key = flux0
+
 
     if outname is None:
         outname = metafits.replace(".metafits", "_skymodel.txt")
