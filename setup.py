@@ -17,9 +17,7 @@ reqs = [
     "astropy"+_version,
     "numpy",
     "scipy",
-    "matplotlib"+_version,
-    "psutil",
-    "flux_warp"
+    "psutil"
 ]
 
 scripts = [
