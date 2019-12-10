@@ -145,8 +145,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                         ref_threshold=0., exclude_coords=None, exclusion_zone=1.,
                         d_limit=(-90, 90), radius=180., nmax=200, ref_key="S154",
                         ignore_magellanic=False, index_limits=[-3., 2.], 
-                        curved=False,
-                        flux0=None, freq0=None, alpha0=-0.77, powerlaw_amplitude=None,
+                        curved=False, flux0=None, freq0=None, alpha0=-0.77, powerlaw_amplitude=None,
                         powerlaw_index=None, powerlaw_curvature=None,
                         ra_key="ra", dec_key="dec"):
     """
@@ -155,7 +154,6 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
 
     if flux0 is not None:
         ref_key = flux0
-
 
     if outname is None:
         outname = metafits.replace(".metafits", "_skymodel.txt")
