@@ -30,6 +30,7 @@ scripts = [
     "scripts/obs2reg",
     "scripts/peel_suggester",
     "scripts/prep_model",
+    "scripts/make_single_model"
 ]
 
 
