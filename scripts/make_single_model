@@ -1,0 +1,105 @@
+#! /usr/bin/env python
+
+from argparse import ArgumentParser
+
+import numpy as np
+
+from flux_warp import models
+from scipy.optimize import curve_fit
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+
+from skymodel import create_skymodel
+
+
+
+def fit(model, freq, flux, eflux, p0=None):
+    """
+    """
+
+    if model == models.cpowerlaw:
+        p0 = [models.cpowerlaw_amplitude(freq[0], flux[0], -1., 0.), -1., 0.]
+    elif model == models.powerlaw:
+        p0 = [models.cpowerlaw_amplitude(freq[0], flux[0], -1., 0.), -1.]
+    elif p0 is None:
+        raise RuntimeError("If no models.powerlaw or models.cpowerlaw p0 must be supplied.")
+
+    popt, pcov = curve_fit(np.asarray(freq), np.asarray(flux),
+                           p0=p0,
+                           sigma=np.asarray(eflux),
+                           maxfev=10000,
+                           absolute_sigma=True,
+                           method="lm")
+
+    return popt
+
+
+def get_model_vals(model, model_freq, params):
+    """
+    """
+
+    model_vals = model(model_freq, *params)
+
+    return model_vals
+
+
+def main():
+    """
+    """
+
+    ps = ArgumentParser()
+    ps.add_argument("name", help="Source name.", type=str)
+    ps.add_argument("datafile", help="Text file with frequency, flux, flux error values.", type=str)
+    ps.add_argument("ra", help="RA [deg.]", type=float)
+    ps.add_argument("dec", help="Dec. [deg.]", type=float)
+    ps.add_argument("-C", "--curved", action="store_true", help="Switch to allow curved powerlaw models.")
+    ps.add_argument("-f", "--frequency-range", "--frequency_range", 
+                    destination="frequency_range", help="Frequency range.",
+                    default=[72., 300.],
+                    nargs=2,
+                    type=float)
+    ps.add_argument("-n", "--nval", help="Number of model values.",
+                    default=20, type=int)
+
+    args = ps.parse_args()
+
+    data = np.genfromtxt(args.datafile, names="freq,flux,eflux")
+
+    if args.curved:
+        model = models.cpowerlaw
+    else:
+        model = models.powerlaw
+
+    params = fit(model, data["freq"]/1.e6, data["flux"], data["eflux"])
+    model_freq = np.linspace(args.frequency_range[0], args.frequency_range[1], args.nval)
+    model_vals = get_model_vals(model, model_freq, params)
+
+    outname = "model-{}-point-source.txt".format(args.name)
+
+    coords = SkyCoord(ra=args.ra*u.deg, dec=args.dec*u.deg)
+    r, d = coords.to_string("hmsdms").split()
+
+    pformat = create_skymodel.point_formatter(name=args.name,
+                                              ra=r,
+                                              dec=d,
+                                              freq=model_freq,
+                                              flux=model_vals,
+                                              )
+    with open(outname, "w+") as f:
+        f.write("skymodel fileformat 1.1\n")
+        f.write(pformat)
+
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+
+
+
+
+
