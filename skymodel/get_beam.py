@@ -86,7 +86,7 @@ def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False):
 
     if return_I:
         # TODO: check that this shouldn't be halved!
-        return 0.5*(rX[0] + rY[0])
+        return (rX[0] + rY[0])
     else:
         return rX[0], rY[0]
 
