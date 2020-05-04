@@ -19,7 +19,9 @@ from skymodel.model_fit import (fit,
                                 cpowerlaw_amplitude, 
                                 powerlaw,
                                 from_index,
-                                two_point_index)
+                                two_point_index,
+                                plot)
+
 
 
 
@@ -91,7 +93,7 @@ class Source(object):
 
 
     def at_freq(self, freq, components=0, curved=True, alpha=-0.7, 
-                nearest_freq=2.):
+                nearest_freq=8.):
         """Calculate the flux density of the source at a given frequency.
 
         This is done via various methods depending on number of flux density
@@ -135,6 +137,11 @@ class Source(object):
             
             
             idx = (np.abs(comp.freq - freq)).argmin()
+
+
+
+
+
             if abs(comp.freq[idx] - freq) < nearest_freq*1.e6:
                 self.components[c].add_freq(flux=comp.flux[idx],
                                             freq=freq)
@@ -148,6 +155,7 @@ class Source(object):
                 model = cpowerlaw
                 amp0 = cpowerlaw_amplitude(comp.freq[0], comp.flux[0], -1., 0.)
                 params = [amp0, -1., 0.]
+                logging.debug(params)
             elif len(comp.freq) > 2:
                 logging.debug("powerlaw with {} parameters".format(len(comp.freq)))
                 model = powerlaw
@@ -174,10 +182,25 @@ class Source(object):
                 self.components[c].add_freq(flux=flux_at_freq, freq=freq)
                 continue
 
+
+            # introduce some scatter to data to simulate measured values...
+            scatter = np.random.normal(loc=0.0, scale=1., size=len(comp.freq))
+            flux = comp.flux + (comp.flux*0.03)*scatter
+
+
+            # plot("{}_{}.png".format(self.name, c), 
+            #      x=comp.freq,
+            #      y=flux,
+            #      yerr=abs(flux-comp.flux),
+            #      f=model,
+            #      )
+
             popt, perr = fit(f=model,
                              x=comp.freq,
-                             y=comp.flux,
-                             p0=params)
+                             y=flux,
+                             yerr=comp.flux*0.1,
+                             p0=params,
+                             )
             logging.debug("popt: {}".format(popt))
             flux_at_freq = model(float(freq), *popt)
 
