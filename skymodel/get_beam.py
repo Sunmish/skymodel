@@ -197,7 +197,7 @@ def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", st
     w = WCS(hdr).celestial
     
     # Now get beam values for each pixel:    
-    stride = 2250000  # 1500*1500
+    stride = 4000*4000  # 1500*1500
     for i in range(0, len(x), stride):
         r, d = w.all_pix2world(x[i:i+stride], y[i:i+stride], 0)   
         arr[y[i:i+stride], x[i:i+stride]] = beam_value(r, d, t, delays, freq, return_I=True)
