@@ -5,6 +5,8 @@ from __future__ import print_function, division
 import numpy as np
 from scipy.optimize import curve_fit
 
+import matplotlib.pyplot as plt
+
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
 logger = logging.getLogger(__name__)
@@ -57,3 +59,26 @@ def cpowerlaw_amplitude(x0, y0, b, c):
     """Return amplitude of curved powerlaw model."""
     return y0 / (x0**b * np.exp(c*np.log(x0)**2))
 
+
+def plot(outname, f, x, y, yerr, popt=None):
+    """
+    """
+
+    plt.close("all")
+
+    fig = plt.figure(figsize=(8, 6))
+    ax1 = plt.axes([0.1, 0.1*(6./8.), 0.85, 1.-0.15*(6./8.)])
+
+    ax1.errorbar(x, y, yerr=yerr, xerr=None, fmt="o", ecolor="black", 
+                 mec="black", mfc="black")
+    ax1.plot(x, y, ls="", color="black", marker="o", ms=5.)
+
+    if popt is not None:
+        x_fit = np.linspace(min(x), max(x), 1000)
+        ax1.plot(x_fit, f(x_fit, *popt), color="black", ls="--")
+
+    plt.xscale("log")
+    plt.yscale("log")
+
+    fig.savefig(outname)
+    plt.close("all")
