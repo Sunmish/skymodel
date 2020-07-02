@@ -212,6 +212,7 @@ def create_model_on_template(template, gaussians=None, points=None):
     """
 
     hdu = fits.open(template)[0]
+    hdu.data = np.full_like(hdu.data, 0.)
 
     w = WCS(hdu.header).celestial
 
