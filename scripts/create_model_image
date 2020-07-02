@@ -38,7 +38,7 @@ def main():
              "I": "Reference image for RA, DEC, output image size, pixel size, "
                   "and frequency.",
              "r": "Switch to enable making a \"restored\" image.",
-             "N": "Switch to ignore negative model components."
+             "N": "Switch to ignore negative model components.",
              "n": "Number of subband models to make. [Default None]",
              "b": "Bandwidth if making subband models. [Default None]"}
 
