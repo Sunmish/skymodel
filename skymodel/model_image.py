@@ -226,7 +226,7 @@ def create_model_on_template(template, gaussians=None, points=None):
 
     if gaussians is not None:
 
-        x, y = np.indices(hdu.data.shape)
+        x, y = np.indices((hdu.data.shape[-2], hdu.data.shape[-1]))
         x, y = x.flatten(), y.flatten()
 
         for gaussian in gaussians:
