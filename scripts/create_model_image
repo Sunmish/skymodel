@@ -127,6 +127,10 @@ def main():
 
     for f, freq in enumerate(freqs):
 
+        if args.image is not None:
+            freq = fits.getheader(args.image+"-{}-model{}.fits".format(imagenames[f],
+                                                                       ext))["CRVAL3"]
+
         for aofile in args.aofile:
 
             if args.outname is None:
@@ -148,7 +152,7 @@ def main():
                                components=range(source.ncomponents),
                                curved=args.curved,
                                alpha=-0.77,
-                               nearest_freq=0.1*1.e6*args.bandwidth/args.nfreqs)
+                               nearest_freq=0.)
 
                 for component in source.components:
 
@@ -203,7 +207,8 @@ def main():
                                    outname=outname.replace(".fits", "_cvl.fits"))
 
             else:
-                create_model_on_template(template=args.image+"-{}-model-pb.fits".format(imagenames[f]),
+                create_model_on_template(template=args.image+"-{}-model{}.fits".format(imagenames[f],
+                                                                                       ext),
                                          gaussians=gaussians,
                                          points=points)
 
