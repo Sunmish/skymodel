@@ -39,7 +39,8 @@ def main():
                   "and frequency.",
              "r": "Switch to enable making a \"restored\" image.",
              "N": "Switch to ignore negative model components."
-             }
+             "n": "Number of subband models to make. [Default None]",
+             "b": "Bandwidth if making subband models. [Default None]"}
 
     ps = ArgumentParser(description=description_, epilog=epilog_)
 
@@ -66,6 +67,12 @@ def main():
                         action="store_true", help=help_["C"])
     opt_ps.add_argument("-N", "--nonegative", 
                         action="store_true", help=help_["N"])
+
+    extra_ps = ps.add_argument_group("multi-frequency options")
+    extra_ps.add_argument("-n", "--nfreqs", default=1., type=int,
+                          help=help_["n"])
+    extra_ps.add_argument("-b", "--bandwidth", default=30.72, type=float,
+                          help=help_["b"])
 
     restore_ps = ps.add_argument_group("restore options")
     restore_ps.add_argument("-r", "--restore", action="store_true", help=help_["r"])
@@ -103,77 +110,88 @@ def main():
     if crpix is None:
         crpix = [args.imsize//2, args.imsize//2]
 
-    for aofile in args.aofile:
 
-        if args.outname is None:
-            outname = aofile.replace(".txt", ".fits")
-        else:
-            outname = args.outname
+    delta_nu = args.bandwidth / args.nfreqs
+    start_nu = args.freq - 0.5*args.bandwidth
+    freqs = [start_nu + 0.5*delta_nu + delta_nu*i for i in range(args.nfreqs)] 
+    imagenames = ["{:0>4}".format(i) for i in range(args.nfreqs)]
 
-        sources = parse_ao(aofile)
+    for f, freq in enumerate(freqs):
 
-        gaussians = []
-        points = []
+        for aofile in args.aofile:
 
-        for source in sources:
-
-            source.at_freq(args.freq*1.e6, 
-                           components=range(source.ncomponents),
-                           curved=args.curved,
-                           alpha=-0.77,
-                           nearest_freq=5.)
-
-            for component in source.components:
-
-                if args.nonegative and component.at_flux < 0.:
-                        pass
-
-                elif component.a is None:
-
-                    
-                        point = (component.radec.ra.value,
-                                 component.radec.dec.value,
-                                 component.at_flux)
-
-                        points.append(point)
-
+            if args.outname is None:
+                outname = aofile.replace(".txt", "-{}-model.fits".format(imagenames[f]))
+            else:
+                if len(freqs) > 1:
+                    outname = args.outname.replace(".fits", "-{}-model.fits".format(imagenames[f]))
                 else:
+                    outname = args.outname
 
-                    # Gaussian component:
-                    gaussian = (component.radec.ra.value,
-                                component.radec.dec.value,
-                                component.a/3600.,
-                                component.b/3600.,
-                                component.pa,
-                                component.at_flux)
+            sources = parse_ao(aofile)
 
-                    gaussians.append(gaussian)
+            gaussians = []
+            points = []
+
+            for source in sources:
+
+                source.at_freq(freq*1.e6, 
+                               components=range(source.ncomponents),
+                               curved=args.curved,
+                               alpha=-0.77,
+                               nearest_freq=0.1*1.e6*args.bandwidth/args.nfreqs)
+
+                for component in source.components:
+
+                    if args.nonegative and component.at_flux < 0.:
+                            pass
+
+                    elif component.a is None:
+
+                        
+                            point = (component.radec.ra.value,
+                                     component.radec.dec.value,
+                                     component.at_flux)
+
+                            points.append(point)
+
+                    else:
+
+                        # Gaussian component:
+                        gaussian = (component.radec.ra.value,
+                                    component.radec.dec.value,
+                                    component.a/3600.,
+                                    component.b/3600.,
+                                    component.pa,
+                                    component.at_flux)
+
+                        gaussians.append(gaussian)
 
 
-        if args.coords is None:
-            ra = np.nanmean([r[0] for r in points] + [r[0] for r in gaussians])
-            dec = np.nanmean([d[1] for d in points] + [d[1] for d in gaussians])
-            args.coords = (ra, dec)
+            if args.coords is None:
+                ra = np.nanmean([r[0] for r in points] + [r[0] for r in gaussians])
+                dec = np.nanmean([d[1] for d in points] + [d[1] for d in gaussians])
+                args.coords = (ra, dec)
 
-            print(args.coords)
+                print(args.coords)
 
-        create_model(ra=args.coords[0], 
-                     dec=args.coords[1],
-                     imsize=args.imsize,
-                     pixsize=args.pixsize,
-                     outname=outname,
-                     gaussians=gaussians,
-                     points=points,
-                     crpix=crpix)
+            create_model(ra=args.coords[0], 
+                         dec=args.coords[1],
+                         imsize=args.imsize,
+                         pixsize=args.pixsize,
+                         outname=outname,
+                         gaussians=gaussians,
+                         points=points,
+                         crpix=crpix)
 
-        if args.major is not None:
+            if args.major is not None:
 
-            convolve_model(model_image=outname,
-                           major=args.major,
-                           minor=args.minor,
-                           pa=args.pa, 
-                           rms=args.rms,
-                           outname=outname.replace(".fits", "_cvl.fits"))
+                convolve_model(model_image=outname,
+                               major=args.major,
+                               minor=args.minor,
+                               pa=args.pa, 
+                               rms=args.rms,
+                               outname=outname.replace(".fits", "_cvl.fits"))
 
 
 if __name__ == "__main__":
