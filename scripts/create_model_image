@@ -130,6 +130,7 @@ def main():
         if args.image is not None:
             freq = fits.getheader(args.image+"-{}-model{}.fits".format(imagenames[f],
                                                                        ext))["CRVAL3"]
+            freq /= 1.e6
 
         for aofile in args.aofile:
 
