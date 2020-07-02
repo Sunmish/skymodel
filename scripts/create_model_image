@@ -203,7 +203,7 @@ def main():
                                    outname=outname.replace(".fits", "_cvl.fits"))
 
             else:
-                create_model_on_template(template=args.image,
+                create_model_on_template(template=args.image+"-{}-model-pb.fits".format(imagenames[f]),
                                          gaussians=gaussians,
                                          points=points)
 
