@@ -207,6 +207,50 @@ def bpp(major, minor, cd1, cd2):
     return np.pi*(major*minor) / (abs(cd1*cd2) * 4.*np.log(2.))
 
 
+def create_model_on_template(template, gaussians=None, points=None):
+    """Create model image on a template image.
+    """
+
+    hdu = fits.open(template)[0]
+
+     w = WCS(hdu.header)
+
+    if points is not None:
+    
+        for point in points:
+            # (ra, dec, A)
+            r, d, A = point
+            logging.debug("point at {} {}, {} Jy".format(r, d, A))
+            x0, y0 = w.all_world2pix(r, d, 0)
+            hdu.data[..., int(y0), int(x0)] += A
+
+    if gaussians is not None:
+
+        x, y = np.indices(arr.shape)
+        x, y = x.flatten(), y.flatten()
+
+        for gaussian in gaussians:
+            # (ra, dec, major, minor, pa, I)
+            r, d, major, minor, pa, I = gaussian
+            print("gauss at {} {}, major={}; minor={}; I={}; pa={}".format(r, d, major, minor, I, pa))
+            x0, y0 = w.all_world2pix(r, d, 0)
+
+            sigma_x = fwhm_to_sigma(major/pixsize)
+            sigma_y = fwhm_to_sigma(minor/pixsize)
+
+            A = I / (2.*np.pi*sigma_x*sigma_y)
+
+            logging.debug("A={}".format(A))
+            
+            # beta = pa_to_beta(pa, sigma_x, sigma_y)
+            theta = np.radians(pa + 90.)
+            hdu.data[..., y, x] += gauss2d(x, y, A, theta, sigma_x, sigma_y, x0, y0)
+
+    fits.writeto(template, hdu.data, hdu.header, overwrite=True)
+
+
+
+
 def create_model(ra, dec, imsize, pixsize, outname, crpix, gaussians=None, points=None,
     ):
     """Create a model image with Gaussian and/or point source models."""
