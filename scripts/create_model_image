@@ -5,7 +5,7 @@ import numpy as np
 from argparse import ArgumentParser
 
 from skymodel.parsers import parse_ao
-from skymodel.model_image import create_model, convolve_model
+from skymodel.model_image import create_model, convolve_model, create_model_on_template
 
 from astropy.io import fits
 
@@ -58,7 +58,7 @@ def main():
     opt_ps.add_argument("-s", "--imsize", 
                         type=int, default=None, help=help_["s"])
     opt_ps.add_argument("-p", "--pixsize", 
-                        type=float, default=None, help=help_["p"])
+                        type=float, default=0.02, help=help_["p"])
     opt_ps.add_argument("-f", "--freq", 
                         type=float, default=None, help=help_["f"])
     opt_ps.add_argument("-a", "--alpha", 
@@ -88,27 +88,30 @@ def main():
         raise ValueError("An AO-style model file must be specified.")
 
     crpix = None
-    if args.image is not None:
-        ref_hdr = fits.getheader(args.image)
-        if args.coords is None:
-            args.coords = [ref_hdr["CRVAL1"], ref_hdr["CRVAL2"]]
-            crpix = [ref_hdr["CRPIX1"], ref_hdr["CRPIX2"]]
-        if args.imsize is None:
-            args.imsize = ref_hdr["NAXIS1"]
-        if args.pixsize is None:
-            if "CDELT1" in ref_hdr.keys():
-                args.pixsize = abs(ref_hdr["CDELT1"])
-            elif "CD1_1" in ref_hdr.keys():
-                args.pixsize = abs(ref_hdr["CD1_1"])
-            else:
-                raise ValueError("No pixel information found in {}".format(
-                                 args.image))
-        if args.major is None and args.restore:
-            args.major = ref_hdr["BMAJ"]*3600.
-        if args.minor is None and args.restore:
-            args.minor = ref_hdr["BMIN"]*3600.
+    if args.image is not None and args.restore:
+        raise RuntimeError("a template image won't be restored.")
+        # ref_hdr = fits.getheader(args.image)
+        # if args.coords is None:
+        #     args.coords = [ref_hdr["CRVAL1"], ref_hdr["CRVAL2"]]
+        #     crpix = [ref_hdr["CRPIX1"], ref_hdr["CRPIX2"]]
+        # if args.imsize is None:
+        #     args.imsize = ref_hdr["NAXIS1"]
+        # if args.pixsize is None:
+        #     if "CDELT1" in ref_hdr.keys():
+        #         args.pixsize = abs(ref_hdr["CDELT1"])
+        #     elif "CD1_1" in ref_hdr.keys():
+        #         args.pixsize = abs(ref_hdr["CD1_1"])
+        #     else:
+        #         raise ValueError("No pixel information found in {}".format(
+        #                          args.image))
+        # if args.major is None and args.restore:
+        #     args.major = ref_hdr["BMAJ"]*3600.
+        # if args.minor is None and args.restore:
+        #     args.minor = ref_hdr["BMIN"]*3600.
 
-    if crpix is None:
+
+
+    if crpix is None and args.imsize is not None:
         crpix = [args.imsize//2, args.imsize//2]
 
 
@@ -181,23 +184,30 @@ def main():
 
                 print(args.coords)
 
-            create_model(ra=args.coords[0], 
-                         dec=args.coords[1],
-                         imsize=args.imsize,
-                         pixsize=args.pixsize,
-                         outname=outname,
-                         gaussians=gaussians,
-                         points=points,
-                         crpix=crpix)
+            if args.image is None:
+                create_model(ra=args.coords[0], 
+                             dec=args.coords[1],
+                             imsize=args.imsize,
+                             pixsize=args.pixsize,
+                             outname=outname,
+                             gaussians=gaussians,
+                             points=points,
+                             crpix=crpix)
 
-            if args.major is not None:
+                if args.major is not None:
+                    convolve_model(model_image=outname,
+                                   major=args.major,
+                                   minor=args.minor,
+                                   pa=args.pa, 
+                                   rms=args.rms,
+                                   outname=outname.replace(".fits", "_cvl.fits"))
 
-                convolve_model(model_image=outname,
-                               major=args.major,
-                               minor=args.minor,
-                               pa=args.pa, 
-                               rms=args.rms,
-                               outname=outname.replace(".fits", "_cvl.fits"))
+            else:
+                create_model_on_template(template=args.image,
+                                         gaussians=gaussians,
+                                         points=points)
+
+
 
 
 if __name__ == "__main__":
