@@ -73,6 +73,7 @@ def main():
                           help=help_["n"])
     extra_ps.add_argument("-b", "--bandwidth", default=30.72, type=float,
                           help=help_["b"])
+    extra_ps.add_argument("--pb", action="store_true")
 
     restore_ps = ps.add_argument_group("restore options")
     restore_ps.add_argument("-r", "--restore", action="store_true", help=help_["r"])
@@ -116,15 +117,20 @@ def main():
     freqs = [start_nu + 0.5*delta_nu + delta_nu*i for i in range(args.nfreqs)] 
     imagenames = ["{:0>4}".format(i) for i in range(args.nfreqs)]
 
+    if args.pb:
+        ext = "-pb"
+    else:
+        ext = ""
+
     for f, freq in enumerate(freqs):
 
         for aofile in args.aofile:
 
             if args.outname is None:
-                outname = aofile.replace(".txt", "-{}-model.fits".format(imagenames[f]))
+                outname = aofile.replace(".txt", "-{}-model{}.fits".format(imagenames[f], ext))
             else:
                 if len(freqs) > 1:
-                    outname = args.outname.replace(".fits", "-{}-model.fits".format(imagenames[f]))
+                    outname = args.outname.replace(".fits", "-{}-model{}.fits".format(imagenames[f], ext))
                 else:
                     outname = args.outname
 
