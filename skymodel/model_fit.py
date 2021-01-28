@@ -23,7 +23,7 @@ def fit(f, x, y, p0, yerr=None, return_pcov=False):
                            absolute_sigma=True,
                            method="lm",
                            sigma=yerr,
-                           maxfev=10000)
+                           maxfev=100000)
 
     perr = np.sqrt(np.diag(pcov))
 
@@ -39,9 +39,18 @@ def from_index(x, x1, y1, index):
     """Calculate flux from measured value and measured/assumed index."""
     return y1*(x/x1)**index
 
+def from_index_err(x, x1, y1, index):
+    """Calculate error from flux derived from index."""
+    return from_index(x, x1, y1, index[0])*np.sqrt(np.abs(y1[1]/y1[0])**2 + 
+                                                np.abs(np.log(x/x1)*index[1])**2)
+
 def two_point_index(x1, x2, y1, y2):
     """Calculate spectral index from two measurements."""
     return np.log10(y1/y2)/np.log10(x1/x2)
+
+def two_point_index_err(x1, x2, y1, y2):
+    """Standard uncertainty on two-point index."""
+    return (1./np.log(x1/x2))*np.sqrt(abs(y1[1]/y1[0])**2 + abs(y2[1]/y2[0])**2)
 
 def powerlaw(x, a, b):
     """Simple powerlaw function."""
