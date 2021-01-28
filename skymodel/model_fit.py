@@ -41,7 +41,7 @@ def from_index(x, x1, y1, index):
 
 def from_index_err(x, x1, y1, index):
     """Calculate error from flux derived from index."""
-    return from_index(x, x1, y1, index[0])*np.sqrt(np.abs(y1[1]/y1[0])**2 + 
+    return from_index(x, x1, y1[0], index[0])*np.sqrt(np.abs(y1[1]/y1[0])**2 + 
                                                 np.abs(np.log(x/x1)*index[1])**2)
 
 def two_point_index(x1, x2, y1, y2):
