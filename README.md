@@ -16,7 +16,7 @@ Besides the standard `python` setup for astronomy, along with `astropy`, `numpy`
 9. `prep_model` Prepare an AO-model file by combining a collection of individual AO-model files.
 
 ## Installing
-To clone and install the repository to a standard locatio, try the following:
+To clone and install the repository to a standard location, try the following:
 ```
 git clone https://github.com/Sunmish/skymodel.git
 cd skymodel
