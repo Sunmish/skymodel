@@ -367,6 +367,9 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
     coords = SkyCoord(ra=catalogue[ra_key], dec=catalogue[dec_key], 
                       unit=(u.deg, u.deg))
 
+
+    freqs_to_predict = [round(v, 3) for v in np.linspace(freq-0.5*30.72, freq+0.5*30.72, 10)]
+
     with open(outname, "w+") as o:
         o.write("skymodel fileformat 1.1\n")
 
@@ -375,14 +378,14 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
             r, d = coords[i].to_string("hmsdms").split()
 
             flux = []
-            for f in FREQ_LIST:
+            for f in freqs_to_predict:
 
                 if model0:
                     # Curved power law from full model components:
                     if not np.asarray([np.isnan(catalogue[key][i]) for key in 
                         [powerlaw_index, powerlaw_amplitude, powerlaw_curvature]]).all():
 
-                        flux.append(cpowerlaw(freq, 
+                        flux.append(cpowerlaw(f, 
                                               a=catalogue[powerlaw_amplitude][i], 
                                               b=catalogue[powerlaw_index][i], 
                                               c=catalogue[powerlaw_curvature][i]))
@@ -396,7 +399,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                                 y0=catalogue[flux0][i],
                                                 b=catalogue[powerlaw_index][i],
                                                 c=catalogue[powerlaw_curvature][i])
-                        flux.append(cpowerlaw(freq, 
+                        flux.append(cpowerlaw(f, 
                                               a=a, 
                                               b=catalogue[powerlaw_index][i], 
                                               c=catalogue[powerlaw_curvature][i]))
@@ -406,7 +409,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                     if not np.asarray([np.isnan(catalogue[key][i]) for key in
                         [powerlaw_amplitude, powerlaw_index]]).all():
 
-                        flux.append(cpowerlaw(freq,
+                        flux.append(cpowerlaw(f,
                                               a=catalogue[powerlaw_amplitude][i],
                                               b=catalogue[powerlaw_index][i],
                                               c=0.))
@@ -420,7 +423,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                                 y0=catalogue[flux0][i],
                                                 b=catalogue[powerlaw_index][i],
                                                 c=0)
-                        flux.append(cpowerlaw(freq,
+                        flux.append(cpowerlaw(f,
                                               a=a,
                                               b=catalogue[powerlaw_index][i],
                                               c=0.))
@@ -428,7 +431,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                 elif model4:
                     if not np.isnan(catalogue[flux0][i]):
 
-                        flux.append(from_index(freq, 
+                        flux.append(from_index(f, 
                                                x1=freq0,
                                                y1=catalogue[flux0][i],
                                                index=alpha0))
@@ -439,7 +442,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
             entry_format = point_formatter(name=name,
                                            ra=r,
                                            dec=d,
-                                           freq=FREQ_LIST,
+                                           freq=freqs_to_predict,
                                            flux=flux)
 
             o.write(entry_format)
