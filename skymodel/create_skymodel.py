@@ -143,6 +143,7 @@ def check_keys(table, *keys):
 
 def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                         ref_threshold=0., exclude_coords=None, exclusion_zone=1.,
+                        bright_exclusion_zone=10.,
                         d_limit=(-90, 90), radius=180., nmax=200, ref_key="S154",
                         ignore_magellanic=False, index_limits=[-3., 2.], 
                         curved=False, flux0=None, freq0=None, alpha0=-0.77, powerlaw_amplitude=None,
@@ -317,12 +318,18 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
 
     if len(catalogue) > nmax:
         logging.info("More than nmax={0} sources in catalogue - trimming.".format(nmax))
-        a_cut = round(np.sort(atten_flux)[::-1][nmax-1], 1)
+        idx = np.argsort(atten_flux)[::-1]
+        catalogue = catalogue[idx[:nmax]]
+        at_flux = at_flux[idx[:nmax]]
+        atten_flux = atten_flux[idx[:nmax]]
+
+        # a_cut = round(np.sort(atten_flux)[::-1][nmax-1], 1)
         
-        catalogue = catalogue[atten_flux > a_cut]
-        at_flux = at_flux[atten_flux > a_cut]
-        atten_flux = atten_flux[atten_flux > a_cut]
-        
+        # catalogue = catalogue[atten_flux > a_cut]
+        # at_flux = at_flux[atten_flux > a_cut]
+        # atten_flux = atten_flux[atten_flux > a_cut]
+        a_cut = np.nanmin(atten_flux)
+
         logging.info("Sources after new flux treshold of {0} Jy: {1}".format(
                      a_cut, len(catalogue)))
 
@@ -334,7 +341,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
         if exclude_coords is not None:
 
             excl_seps = coords[i].separation(exclude_coords)
-            if (excl_seps.value < exclusion_zone/60.).any():
+            if (excl_seps.value < bright_exclusion_zone/60.).any():
                 logging.debug("{} within exclusion zone.".format(i))
                 atten_flux[i] = np.nan
                 continue
