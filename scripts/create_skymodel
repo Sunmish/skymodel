@@ -57,7 +57,9 @@ def main():
              "a": "Spectral index for extrapolation.",
              "ra_key": "Key/name for RA column. [Default 'ra']",
              "dec_key": "Key/name for DEC column. [Default 'dec']",
-
+             "ezone": "Exclusion zone around sources. Calibrator sources must not have " \
+                      "neighbours within this zone in arcmin. Default 0.5 arcmin.",
+             "bezone" : "Exclusion zone around --exclude_model sources. Default 10 arcmin."
 
 
             }
@@ -75,6 +77,8 @@ def main():
                         type=float, help=help_["t"])
     parser.add_argument("-R", "--radius", dest="radius", default=120., 
                         type=float, help=help_["r"])
+    parser.add_argument("--exclusion_zone", type=float, default=0.5,
+                        help=help_["ezone"])
     # parser.add_argument("-R", "--ratio", dest="ratio", default=1.2, type=float, 
                         # help=help_["R"])
     parser.add_argument("-n", "--nmax", dest="nmax", default=100, type=int, 
@@ -82,6 +86,9 @@ def main():
     parser.add_argument("-p", "--plot", action="store_true", help=help_["p"])
     parser.add_argument("-x", "--exclude_model", dest="exclude", default=None,
                         help=help_["x"], nargs="*")
+    parser.add_argument("--bright_exclusion_zone", type=float, default=10.,
+                        help=help_["bezone"])
+    parser.add_argument("-i", "--ignore_magellanic", action="store_true")
     parser.add_argument("-C", "--curved", dest="curved", action="store_true",
                         help=help_["C"])
     parser.add_argument("-N", "--use_ns", action="store_true")
@@ -170,14 +177,15 @@ def main():
                         threshold=options.threshold,
                         ref_threshold=options.threshold,
                         exclude_coords=exclusion_coords,
-                        exclusion_zone=10.,
+                        exclusion_zone=options.exclusion_zone,
+                        bright_exclusion_zone=options.bright_exclusion_zone,
                         d_limit=(-90, 45),
                         radius=options.radius,
                         nmax=options.nmax,
                         # ref_key="S154",
                         index_limits=options.alpha_limits,
                         # curved=options.curved,
-                        ignore_magellanic=True,
+                        ignore_magellanic=options.ignore_magellanic,
                         flux0=options.flux0,
                         freq0=options.freq0,
                         alpha0=options.alpha0,
