@@ -6,7 +6,7 @@ import os
 import numpy as np
 
 from skymodel.parsers import parse_ao, parse_metafits
-from skymodel.get_beam import atten_source
+from skymodel.get_beam import atten_source, beam_value
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
@@ -57,6 +57,8 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
         raise ValueError("Frequency information not found!")
 
     tflux = 0
+    fluxes, ras, decs = [], [], []
+
     for source in sources:
         # First calculate the flux density at the given frequency:
 
@@ -75,17 +77,29 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
                        alpha=alpha,
                        curved=curved)
 
-        
-        if (metafits is not None) and attenuate:
-            sflux = atten_source(source=source,
-                                 t=t,
-                                 delays=delays,
-                                 freq=at_freq)
-        else:
-            sflux = np.nansum(np.array([source.components[i].at_flux 
-                                        for i in range(source.ncomponents)]))
+        sflux = np.nansum(np.array([source.components[i].at_flux 
+                                    for i in range(source.ncomponents)]))
 
-        tflux += sflux
+
+        fluxes.append(sflux)
+        ras.append(np.mean([source.components[i].radec.ra.value \
+                for i in range(source.ncomponents)]))
+        decs.append(np.mean([source.components[i].radec.dec.value \
+                for i in range(source.ncomponents)]))
+        
+
+    if (metafits is not None) and attenuate:
+        pseudoI = beam_value(ra=np.asarray(ras),
+                             dec=np.asarray(decs),
+                             t=t,
+                             delays=delays,
+                             freq=at_freq,
+                             return_I=True)
+        sflux_atten = pseudoI * np.asarray(fluxes)
+        tflux = np.nansum(sflux_atten)
+
+    else:
+        tflux = np.sum(sflux)
 
     return tflux
 
