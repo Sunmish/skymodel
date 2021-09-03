@@ -9,10 +9,15 @@ from astropy import units as u
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.INFO)
+                    level=logging.DEBUG)
 
+try:
+    from skymodel.get_beam import beam_value
+    pbcorrect = True
+except ModuleNotFoundError:
+    logging.warning("MWA primary beam not found - not using primary beam correction.")
+    pbcorrect = False
 
-from skymodel.get_beam import beam_value
 
 from skymodel.model_fit import (fit,
                                 cpowerlaw, 
@@ -224,8 +229,12 @@ def parse_ao(aofile):
     
             if found_component and found_source:
 
+                logging.debug("found comp. and source")
+
                 if "frequency" in line.lower():
                 
+                    logging.debug("found frequency")
+
                     freq.append(float(line.split()[1])*1.e6)
                     flux.append(float(lines[i+1].split()[2]))
 
@@ -239,6 +248,7 @@ def parse_ao(aofile):
 
             elif "name" in line.lower():
                 
+
                 if found_source:
                     sources.append(source)
                 
@@ -247,7 +257,9 @@ def parse_ao(aofile):
                 source = Source(name)
                 found_source = True
 
+
             elif "component" in line.lower() and found_source:
+
 
                 found_component = True
                 for j in [2, 3]:
@@ -266,8 +278,7 @@ def parse_ao(aofile):
                         if "shape" in lines[i+j]:
                             _, a, b, pa = lines[i+j].split()
                             
-                    
-
+                
 
         
         if found_source:
