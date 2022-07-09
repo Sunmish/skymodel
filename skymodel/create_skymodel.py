@@ -9,7 +9,7 @@ import numpy as np
 
 from astropy import wcs
 from astropy.io import fits
-from astropy.table import Table, Column
+from astropy.table import Table, vstack, Column
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from astropy import units as u
 from astropy.time import Time
@@ -18,7 +18,7 @@ import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
                     level=logging.INFO)
 
-from skymodel.get_beam import beam_value
+from skymodel.get_beam import beam_value, find_lobes, make_beam_image
 from skymodel.parsers import parse_metafits
 
 from skymodel.model_fit import cpowerlaw, cpowerlaw_amplitude, powerlaw, from_index
@@ -136,7 +136,7 @@ def check_keys(table, *keys):
     """Wrapper to check existence of keys/columns in a table."""
 
     for key in keys:
-        if key not in table.names:
+        if key not in table.columns:
             raise KeyError("{} not in model catalogue!".format(key))
 
 
@@ -148,7 +148,8 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                         ignore_magellanic=False, index_limits=[-3., 2.], 
                         curved=False, flux0=None, freq0=None, alpha0=-0.77, powerlaw_amplitude=None,
                         powerlaw_index=None, powerlaw_curvature=None,
-                        ra_key="ra", dec_key="dec"):
+                        ra_key="ra", dec_key="dec",
+                        nlobes=1):
     """
     """
 
@@ -166,7 +167,24 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
     else:
         ref_freq = freq0
 
-    catalogue = fits.open(table)[1].data
+    if nlobes > 1:
+        # work out where primary beam sidelobes are, and
+        # include only brightest sidelobes with radius check
+        beam_image = make_beam_image(t, delays, freq*1e6,
+            ra=pnt.ra.value,
+            return_hdu=True)
+        lobe_table = find_lobes(beam_image, perc=0.1, return_table=True)
+        print(lobe_table)
+        centres = SkyCoord(
+            ra=np.asarray(lobe_table[:nlobes]["ra"]),
+            dec=np.asarray(lobe_table[:nlobes]["dec"]),
+            unit=(u.deg, u.deg)
+        )
+    else:
+        centres = [pnt]
+
+    # catalogue = fits.open(table)[1].data
+    catalogue = Table.read(table).filled(np.nan)
 
     logging.info("Total sources: {}".format(len(catalogue)))
 
@@ -211,9 +229,15 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
 
     coords = SkyCoord(ra=catalogue[ra_key], dec=catalogue[dec_key], 
                       unit=(u.deg, u.deg))
-    seps = pnt.separation(coords).value
-    catalogue = catalogue[seps < radius]
-    logging.info("Sources after radial cut: {}".format(len(catalogue)))
+    beam_lobes = []
+    for i in range(len(centres)):
+        seps = centres[i].separation(coords).value
+        lobe_catalogue = catalogue[seps < radius]
+        beam_lobes.append(lobe_catalogue)
+        logging.info("Sources in lobe {}: {}".format(i, len(lobe_catalogue)))
+    
+    catalogue = vstack(beam_lobes)
+    logging.info("Sources after radial cut(s): {}".format(len(catalogue)))
 
     coords = SkyCoord(ra=catalogue[ra_key], dec=catalogue[dec_key], 
                       unit=(u.deg, u.deg))

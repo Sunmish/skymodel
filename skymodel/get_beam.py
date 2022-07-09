@@ -10,6 +10,7 @@ from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz, FK5
 from astropy import units as u
 from astropy.wcs import WCS
+from astropy.table import Table
 
 from scipy import ndimage  # For lobe finding in the primary beam images
 from scipy.spatial import distance
@@ -80,7 +81,7 @@ def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False):
                               az=[az],
                               freq=freq,
                               delays=delays,
-                              power=True,
+                              power=False,
                               interp=interp,
                               pixels_per_deg=10)
 
@@ -221,9 +222,13 @@ class Lobe(object):
         self.original_x = x
         self.original_y = y
         # TODO control +/-1 values to ensure there are actually pixels there
-        self.arr = arr[min(x)-1:max(x)+2, min(y)-1:max(y)+2]
+        # if min(x) > 0: min_x = min(x) - 1
+        # else: min_x = min(x)
+        # 
+        # self.arr = arr[min(x)-1:max(x)+2, min(y)-1:max(y)+2]
+        self.arr = arr[min(x):max(x), min(y):max(y)]
 
-        self.x, self.y = np.indices((self.arr.shape[0]-1, self.arr.shape[1]-1))
+        self.x, self.y = np.indices((self.arr.shape[0], self.arr.shape[1]))
         self.x = self.x.flatten()
         self.y = self.y.flatten()
 
@@ -300,18 +305,32 @@ class Lobe(object):
         return int(cenx), int(ceny)
 
 
+def lobe_table(lobes):
+    table = Table(
+        names=("index", "ra", "dec", "peak"),
+        dtype=("i4", "f4", "f4", "f4")
+    )
+    for l in lobes.keys():
+        table.add_row(
+            (l, lobes[l].ra, lobes[l].dec, lobes[l].peak)
+        )
+    return table[table.argsort("peak")[::-1]]
 
-def find_lobes(hdu, perc=0.1, centroid=True):
+
+def find_lobes(hdu, perc=0.1, centroid=True, return_table=False):
     """Find main lobe and any sidelobes in a beam image."""
 
     w = WCS(hdu.header)  # For converting to world coordinates.
 
     # First set everything < 0.1 to zero and set nans to zero:
-    hdu.data[np.where(np.isnan(hdu.data))] = 0.
-    hdu.data[hdu.data < perc] = 0.
+    # hdu.data[np.where(np.isnan(hdu.data))] = 0.
+    # hdu.data[hdu.data < perc] = 0.
 
     # Convert to a data format usable by scipy:
     arr = hdu.data.copy().byteswap().newbyteorder().astype("float64")
+
+    arr[np.where(np.isnan(arr))] = 0.
+    arr[arr < perc] = 0.
     
     lobe_image, nlabels = ndimage.label(arr)
 
@@ -322,27 +341,37 @@ def find_lobes(hdu, perc=0.1, centroid=True):
 
     for lobe in lobe_numbers:
 
+    
+
         x, y = np.where(lobe_image == lobe)
-        l = Lobe(x, y, arr)
-        l.max_size()
-        l.maximum_size = l.size * hdu.header["CDELT2"]
-        
-        l.cenx, l.ceny = Lobe.centroid(x, y, arr)
-        l.peakx, l.peaky = Lobe.peak(x, y, arr)
 
-        if centroid:    
-            ra, dec = Lobe.pix_to_world(l.ceny, l.cenx, w)
-        else:
-            ra, dec = Lobe.pix_to_world(l.peaky, l.peakx, w)
+        try:
+            l = Lobe(x, y, arr)
+            l.max_size()
+            l.maximum_size = l.size * hdu.header["CDELT2"]
+            
+            l.cenx, l.ceny = Lobe.centroid(x, y, arr)
+            l.peakx, l.peaky = Lobe.peak(x, y, arr)
+            l.peak = np.nanmax(l.arr)           
 
-        # Avoid those pesky zero-sized arrays:
-        l.ra = float(ra)
-        l.dec = float(dec) 
-        l.sky = SkyCoord(ra=l.ra, dec=l.dec, unit=(u.deg, u.deg))
+            if centroid:    
+                ra, dec = Lobe.pix_to_world(l.ceny, l.cenx, w)
+            else:
+                ra, dec = Lobe.pix_to_world(l.peaky, l.peakx, w)
 
-        lobes[lobe] = l
+            # Avoid those pesky zero-sized arrays:
+            l.ra = float(ra)
+            l.dec = float(dec) 
+            l.sky = SkyCoord(ra=l.ra, dec=l.dec, unit=(u.deg, u.deg))
 
-    return lobes
+            lobes[lobe] = l
+        except ValueError:
+            pass
+
+    if return_table:
+        return  lobe_table(lobes)
+    else:
+        return lobes
 
 
 

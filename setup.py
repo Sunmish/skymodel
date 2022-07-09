@@ -36,13 +36,13 @@ scripts = [
 
 setuptools.setup(
     name="skymodel",
-    version="1.2.0",
+    version="1.4.0",
     author="Stefan W Duchesne",
     author_email="stefanduchesne@gmail.com",
     description="A small package to create sky models for MWA calibration.",
     long_description=long_description,
     url="https://github.com/Sunmish/skymodel",
-    install_requires=reqs,
+    install_required=reqs,
     packages=["skymodel"],
     scripts=scripts,
 )
