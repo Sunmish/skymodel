@@ -149,7 +149,8 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                         curved=False, flux0=None, freq0=None, alpha0=-0.77, powerlaw_amplitude=None,
                         powerlaw_index=None, powerlaw_curvature=None,
                         ra_key="ra", dec_key="dec",
-                        nlobes=1):
+                        nlobes=1,
+                        nfreqs_to_predict=10):
     """
     """
 
@@ -174,7 +175,6 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
             ra=pnt.ra.value,
             return_hdu=True)
         lobe_table = find_lobes(beam_image, perc=0.1, return_table=True)
-        print(lobe_table)
         centres = SkyCoord(
             ra=np.asarray(lobe_table[:nlobes]["ra"]),
             dec=np.asarray(lobe_table[:nlobes]["dec"]),
@@ -399,7 +399,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                       unit=(u.deg, u.deg))
 
 
-    freqs_to_predict = [round(v, 3) for v in np.linspace(freq-0.5*30.72, freq+0.5*30.72, 10)]
+    freqs_to_predict = [round(v, 3) for v in np.linspace(freq-0.5*30.72, freq+0.5*30.72, nfreqs_to_predict)]
 
     with open(outname, "w+") as o:
         o.write("skymodel fileformat 1.1\n")

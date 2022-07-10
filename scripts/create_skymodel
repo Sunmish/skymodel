@@ -96,6 +96,7 @@ def main():
     parser.add_argument("--ra_key", default="ra", type=str, help=help_["ra_key"])
     parser.add_argument("--dec_key", default="dec", type=str, help=help_["dec_key"])
     parser.add_argument("--nlobes", default=1, type=int)
+    parser.add_argument("--nfreqs", default=10, type=int)
     options = parser.parse_args()
 
 
@@ -132,7 +133,8 @@ def main():
                         powerlaw_curvature=options.curvature,
                         ra_key=options.ra_key,
                         dec_key=options.dec_key,
-                        nlobes=options.nlobes)
+                        nlobes=options.nlobes,
+                        nfreqs_to_predict=options.nfreqs)
 
 
 
