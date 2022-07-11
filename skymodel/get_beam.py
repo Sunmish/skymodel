@@ -81,7 +81,8 @@ def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False):
                               az=[az],
                               freq=freq,
                               delays=delays,
-                              power=False,
+                              power=True,
+                              zenithnorm=True,
                               interp=interp,
                               pixels_per_deg=10)
 
