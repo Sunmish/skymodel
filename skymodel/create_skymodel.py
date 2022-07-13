@@ -150,7 +150,8 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                         powerlaw_index=None, powerlaw_curvature=None,
                         ra_key="ra", dec_key="dec",
                         nlobes=1,
-                        nfreqs_to_predict=10):
+                        nfreqs_to_predict=10,
+                        attenuate=False):
     """
     """
 
@@ -260,9 +261,11 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
     # if alpha is None:
     #     alpha = np.nanmean(catalogue["beta_p"])
 
+    models = np.full((len(catalogue),), -1)
     for i in range(len(catalogue)):
 
         row = catalogue[i]
+
 
         if model0:
             # Curved power law from full model components:
@@ -273,6 +276,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                        a=catalogue[powerlaw_amplitude][i], 
                                        b=catalogue[powerlaw_index][i], 
                                        c=catalogue[powerlaw_curvature][i])
+                models[i] = 0
 
         if model1 and np.isnan(at_flux[i]):
             # Curved power law from reference measurement:
@@ -287,6 +291,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                        a=a, 
                                        b=catalogue[powerlaw_index][i], 
                                        c=catalogue[powerlaw_curvature][i])
+                models[i] = 1 
 
         if model2 and np.isnan(at_flux[i]):
             # Normal power law from full model components:
@@ -297,6 +302,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                        a=catalogue[powerlaw_amplitude][i],
                                        b=catalogue[powerlaw_index][i],
                                        c=0.)
+                models[i] = 2
 
         if model3 and np.isnan(at_flux[i]):
             # Normal power law from reference measurement:
@@ -311,6 +317,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                        a=a,
                                        b=catalogue[powerlaw_index][i],
                                        c=0.)
+                models[i] = 3
 
         if model4 and np.isnan(at_flux[i]):
             if not np.isnan(catalogue[flux0][i]):
@@ -319,12 +326,13 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                         x1=freq0,
                                         y1=catalogue[flux0][i],
                                         index=alpha0)
-
-
+                models[i] = 4
 
     catalogue = catalogue[np.isfinite(at_flux)]
     stokesI = stokesI[np.isfinite(at_flux)]
+    models = models[np.isfinite(at_flux)]
     at_flux = at_flux[np.isfinite(at_flux)]
+    
 
     logging.info("Sources after estimating flux density: {}".format(len(at_flux)))
 
@@ -332,10 +340,12 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
 
     catalogue = catalogue[np.isfinite(atten_flux)]
     at_flux = at_flux[np.isfinite(atten_flux)]
+    models = models[np.isfinite(atten_flux)]
     atten_flux = atten_flux[np.isfinite(atten_flux)]
     
     catalogue = catalogue[atten_flux > threshold]
     at_flux = at_flux[atten_flux > threshold]
+    models = models[atten_flux > threshold]
     atten_flux = atten_flux[atten_flux > threshold]
     
     logging.info("Sources after attenuating by the primary beam: {}".format(len(at_flux)))
@@ -345,6 +355,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
         idx = np.argsort(atten_flux)[::-1]
         catalogue = catalogue[idx[:nmax]]
         at_flux = at_flux[idx[:nmax]]
+        models = models[idx[:nmax]]
         atten_flux = atten_flux[idx[:nmax]]
 
         # a_cut = round(np.sort(atten_flux)[::-1][nmax-1], 1)
@@ -389,6 +400,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
 
     catalogue = catalogue[np.isfinite(atten_flux)]
     at_flux = at_flux[np.isfinite(atten_flux)]
+    models = models[np.isfinite(atten_flux)]
     atten_flux = atten_flux[np.isfinite(atten_flux)]
     
     
@@ -400,6 +412,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
 
 
     freqs_to_predict = [round(v, 3) for v in np.linspace(freq-0.5*30.72, freq+0.5*30.72, nfreqs_to_predict)]
+    logging.info("Predicting frequency: {}".format(freqs_to_predict))
 
     with open(outname, "w+") as o:
         o.write("skymodel fileformat 1.1\n")
@@ -411,7 +424,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
             flux = []
             for f in freqs_to_predict:
 
-                if model0:
+                if models[i] == 0:
                     # Curved power law from full model components:
                     if not np.asarray([np.isnan(catalogue[key][i]) for key in 
                         [powerlaw_index, powerlaw_amplitude, powerlaw_curvature]]).all():
@@ -421,7 +434,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                               b=catalogue[powerlaw_index][i], 
                                               c=catalogue[powerlaw_curvature][i]))
 
-                elif model1:
+                elif models[i] == 1:
                     # Curved power law from reference measurement:
                     if not np.asarray([np.isnan(catalogue[key][i]) for key in
                         [powerlaw_index, powerlaw_curvature, flux0]]).all():
@@ -435,7 +448,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                               b=catalogue[powerlaw_index][i], 
                                               c=catalogue[powerlaw_curvature][i]))
 
-                elif model2:
+                elif models[i] == 2:
                     # Normal power law from full model components:
                     if not np.asarray([np.isnan(catalogue[key][i]) for key in
                         [powerlaw_amplitude, powerlaw_index]]).all():
@@ -445,7 +458,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                               b=catalogue[powerlaw_index][i],
                                               c=0.))
 
-                elif model3:
+                elif models[i] == 3:
                     # Normal power law from reference measurement:
                     if not np.asarray([np.isnan(catalogue[key][i]) for key in
                         [powerlaw_index, flux0]]).all():
@@ -459,7 +472,7 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
                                               b=catalogue[powerlaw_index][i],
                                               c=0.))
 
-                elif model4:
+                elif models[i] == 4:
                     if not np.isnan(catalogue[flux0][i]):
 
                         flux.append(from_index(f, 
