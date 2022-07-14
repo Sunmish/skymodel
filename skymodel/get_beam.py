@@ -308,12 +308,12 @@ class Lobe(object):
 
 def lobe_table(lobes):
     table = Table(
-        names=("index", "ra", "dec", "peak"),
-        dtype=("i4", "f4", "f4", "f4")
+        names=("index", "ra", "dec", "peak", "size"),
+        dtype=("i4", "f4", "f4", "f4", "f4")
     )
     for l in lobes.keys():
         table.add_row(
-            (l, lobes[l].ra, lobes[l].dec, lobes[l].peak)
+            (l, lobes[l].ra, lobes[l].dec, lobes[l].peak, lobes[l].maximum_size)
         )
     return table[table.argsort("peak")[::-1]]
 

@@ -4,6 +4,8 @@
 
 import argparse
 
+import numpy as np
+
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -32,6 +34,8 @@ def main():
                     help="Switch to return only the mainlobe.")
     ps.add_argument("-P", "--peak", action="store_false", dest="centroid",
                     help="Find peak of lobes rather than centroids. [Default False]")
+    ps.add_argument("--nlobes", action="store_true", 
+                    help="Print out number of lobes above specified percent level.")
 
     args = ps.parse_args()
 
@@ -49,35 +53,37 @@ def main():
 
         hdu = fits.open(args.image)[0]
 
-
-    lobes = get_beam.find_lobes(hdu, perc=args.perc, centroid=args.centroid)
-
+    lobe_table = get_beam.find_lobes(hdu, 
+        perc=args.perc,
+        centroid=args.centroid, 
+        return_table=True)
+    lobe_coords = SkyCoord(ra=lobe_table["ra"],
+        dec=lobe_table["dec"],
+        unit=(u.deg, u.deg))
     main_lobe = None
     if args.metafits:
-        min_sep = 1e9
-        for i in lobes.keys():
-            coords = SkyCoord(ra=lobes[i].ra,
-                              dec=lobes[i].dec,
-                              unit=(u.deg, u.deg))
-            sep = coords.separation(pnt)
-            if sep.value < min_sep and sep.value < lobes[i].maximum_size:
-                min_sep = sep.value
-                main_lobe = i
+        # mainlobe is one closest to pointing centre
+        lobe_seps = pnt.separation(lobe_coords).value
+        main_lobe = np.argmin(lobe_seps)
     else:
-        main_lobe = 1
+        # mainlobe is brightest lobe
+        main_lobe = 0
 
 
-    if not args.sidelobes and main_lobe is not None:
-        # Main lobe:
-        print("main: {:.2f} {:.2f} {:.2f}".format(lobes[main_lobe].ra, 
-                                                   lobes[main_lobe].dec, 
-                                                   lobes[main_lobe].maximum_size))
-    if not args.mainlobe:
-        for i in lobes.keys():
-            if i != main_lobe:
-                print("side: {:.2f} {:.2f} {:.2f}".format(lobes[i].ra,
-                                                           lobes[i].dec,
-                                                           lobes[i].maximum_size))
+    if not args.nlobes:
+        if not args.sidelobes and main_lobe is not None:
+            # Main lobe:
+            print("main: {:.2f} {:.2f} {:.2f}".format(lobe_table[main_lobe]["ra"], 
+                                                    lobe_table[main_lobe]["dec"], 
+                                                    lobe_table[main_lobe]["size"]))
+        if not args.mainlobe:
+            for i in range(len(lobe_table)):
+                if i != main_lobe:
+                    print("side: {:.2f} {:.2f} {:.2f}".format(lobe_table[i].ra,
+                                                            lobe_table[i].dec,
+                                                            lobe_table[i].maximum_size))
+    else:
+        print(len(lobe_table))
 
 
 if __name__ == "__main__":
