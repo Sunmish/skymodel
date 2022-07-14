@@ -9,7 +9,7 @@ from astropy import units as u
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.DEBUG)
+                    level=logging.INFO)
 
 try:
     from skymodel.get_beam import beam_value
@@ -150,24 +150,24 @@ class Source(object):
             if abs(comp.freq[idx] - freq) < nearest_freq*1.e6:
                 self.components[c].add_freq(flux=comp.flux[idx],
                                             freq=freq)
-                logging.debug("using nearest freq to {} ({})".format(freq, comp.freq[idx]))
+                # logging.debug("using nearest freq to {} ({})".format(freq, comp.freq[idx]))
 
                 continue
 
 
             if curved and len(comp.freq) > 3:
-                logging.debug("cpowerlaw with {} parameters".format(len(comp.freq)))
+                # logging.debug("cpowerlaw with {} parameters".format(len(comp.freq)))
                 model = cpowerlaw
                 amp0 = cpowerlaw_amplitude(comp.freq[0], comp.flux[0], -1., 0.)
                 params = [amp0, -1., 0.]
                 logging.debug(params)
             elif len(comp.freq) > 2:
-                logging.debug("powerlaw with {} parameters".format(len(comp.freq)))
+                # logging.debug("powerlaw with {} parameters".format(len(comp.freq)))
                 model = powerlaw
                 amp0 = cpowerlaw_amplitude(comp.freq[0], comp.flux[0], -1., 0.)
                 params = [amp0, -1.]
             elif len(comp.freq) == 2:
-                logging.debug("two-point with {} parameters".format(len(comp.freq)))
+                # logging.debug("two-point with {} parameters".format(len(comp.freq)))
                 index = two_point_index(x1=comp.freq[0], 
                                         x2=comp.freq[1],
                                         y1=comp.flux[0],
@@ -179,7 +179,7 @@ class Source(object):
                 self.components[c].add_freq(flux=flux_at_freq, freq=freq)
                 continue
             else:
-                logging.debug("from-index ({}) with {} parameters".format(comp.alpha, len(comp.freq)))
+                # logging.debug("from-index ({}) with {} parameters".format(comp.alpha, len(comp.freq)))
                 flux_at_freq = from_index(x=freq, 
                                           x1=comp.freq[0], 
                                           y1=comp.flux[0],
@@ -206,7 +206,7 @@ class Source(object):
                              yerr=comp.flux*0.1,
                              p0=params,
                              )
-            logging.debug("popt: {}".format(popt))
+            # logging.debug("popt: {}".format(popt))
             flux_at_freq = model(float(freq), *popt)
 
             self.components[c].add_freq(flux=flux_at_freq, freq=freq)
@@ -229,11 +229,11 @@ def parse_ao(aofile):
     
             if found_component and found_source:
 
-                logging.debug("found comp. and source")
+                # logging.debug("found comp. and source")
 
                 if "frequency" in line.lower():
                 
-                    logging.debug("found frequency")
+                    # logging.debug("found frequency")
 
                     freq.append(float(line.split()[1])*1.e6)
                     flux.append(float(lines[i+1].split()[2]))
@@ -253,7 +253,7 @@ def parse_ao(aofile):
                     sources.append(source)
                 
                 name = " ".join(line.split()[1:]).strip("\n").strip("\"")
-                logging.debug("Found {}".format(name))
+                # logging.debug("Found {}".format(name))
                 source = Source(name)
                 found_source = True
 
@@ -266,7 +266,7 @@ def parse_ao(aofile):
                     if "position" in lines[i+j].lower():  
                         ra = lines[i+j].split()[1]
                         dec = lines[i+j].split()[2].strip("\n")
-                logging.debug("Found component at {}, {}".format(ra, dec))
+                # logging.debug("Found component at {}, {}".format(ra, dec))
                 flux, freq = [], []
                 alpha = -0.77  # average over N+S sources
 
