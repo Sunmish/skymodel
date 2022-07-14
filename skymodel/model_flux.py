@@ -5,8 +5,11 @@ from __future__ import print_function, division
 import os
 import numpy as np
 
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+
 from skymodel.parsers import parse_ao, parse_metafits
-from skymodel.get_beam import atten_source, beam_value
+from skymodel.get_beam import atten_source, beam_value, make_beam_image, find_lobes
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
@@ -15,7 +18,7 @@ logger.setLevel(logging.INFO)
 
 
 def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
-               curved=True, radius=360., coords=None):
+               curved=True, radius=360., coords=None, nlobes=1, beam_image=None):
     """Get total flux from aocal file. 
 
     Assume single source, and calculate the flux at a given frequency for each
@@ -59,18 +62,37 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
     tflux = 0
     fluxes, ras, decs = [], [], []
 
+    if nlobes > 1 and beam_image is not None:
+        lobe_table = find_lobes(beam_image, perc=0.1, return_table=True)
+        centres = SkyCoord(
+            ra=np.asarray(lobe_table[:nlobes]["ra"]),
+            dec=np.asarray(lobe_table[:nlobes]["dec"]),
+            unit=(u.deg, u.deg)
+        )
+    else:
+        centres = [coords]
+
     for source in sources:
         # First calculate the flux density at the given frequency:
 
         # If coords are provided, check that the source is inside the given 
         # radius - if not, set its flux to zero so it isn't included in the 
         # model. 
-        if coords is not None:
-            seps = np.asarray([source.components[i].radec.separation(coords).value 
-                               for i in range(source.ncomponents)])
-            if (seps > radius).any():
-                logger.debug("skipping as outside of radius")
+        isin = False
+        for coords in centres:
+            if coords is not None:
+                seps = np.asarray([source.components[i].radec.separation(coords).value 
+                                for i in range(source.ncomponents)])
+                if (seps < radius).any():
+                    isin = True
+                    continue
+            else:
+                isin = True
                 continue
+        
+        if not isin:
+            logger.debug("skipping as outside of radius")
+            continue
 
         source.at_freq(freq=at_freq,
                        components=range(source.ncomponents),
@@ -105,7 +127,8 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
 
 
 def prep_model(inp, metafits, threshold, outname="./all_models.txt",
-               prefix="model", exclude=None, curved=True, radius=360.):
+               prefix="model", exclude=None, curved=True, radius=360.,
+               nlobes=1):
     """Prepare a combined AO-style model, using models in a directory.
 
     Parameters
@@ -140,6 +163,13 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
     # files_to_use = ""
     total_fluxes = ""
 
+    if nlobes > 1:
+        t, delays, freq, pnt = parse_metafits(metafits)
+        beam_image = make_beam_image(t, delays, freq*1e6,
+            ra=pnt.ra.value,
+            return_hdu=True)
+    else:
+        beam_image = None
 
     for spec in files:
 
@@ -151,7 +181,9 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
                            attenuate=True, 
                            metafits=metafits,
                            curved=curved, 
-                           radius=radius)
+                           radius=radius,
+                           nlobes=nlobes,
+                           beam_image=beam_image)
         
         if tflux > threshold:
 

@@ -22,6 +22,7 @@ def main():
                          "for estimating the flux density of sources.")
     ps.add_argument("-r", "--radius", dest="radius", default=360., type=float,
                     help="Radius within which to include sources. [Default 360 deg]")
+    ps.add_argument("--nlobes", default=1, type=int)
 
     args = ps.parse_args()
 
@@ -41,7 +42,8 @@ def main():
                prefix=args.prefix,
                exclude=args.exclude,
                curved=args.curved,
-               radius=args.radius)
+               radius=args.radius,
+               nlobes=args.nlobes)
 
 if __name__ == "__main__":
     main()
