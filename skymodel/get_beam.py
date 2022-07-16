@@ -329,7 +329,6 @@ def find_lobes(hdu, perc=0.1, centroid=True, return_table=False):
 
     # Convert to a data format usable by scipy:
     arr = hdu.data.copy().byteswap().newbyteorder().astype("float64")
-
     arr[np.where(np.isnan(arr))] = 0.
     arr[arr < perc] = 0.
     
@@ -341,8 +340,6 @@ def find_lobes(hdu, perc=0.1, centroid=True, return_table=False):
     lobe_numbers.remove(0)
 
     for lobe in lobe_numbers:
-
-    
 
         x, y = np.where(lobe_image == lobe)
 

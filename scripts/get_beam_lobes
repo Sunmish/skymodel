@@ -79,9 +79,9 @@ def main():
         if not args.mainlobe:
             for i in range(len(lobe_table)):
                 if i != main_lobe:
-                    print("side: {:.2f} {:.2f} {:.2f}".format(lobe_table[i].ra,
-                                                            lobe_table[i].dec,
-                                                            lobe_table[i].maximum_size))
+                    print("side: {:.2f} {:.2f} {:.2f}".format(lobe_table[i]["ra"],
+                                                            lobe_table[i]["dec"],
+                                                            lobe_table[i]["size"]))
     else:
         print(len(lobe_table))
 

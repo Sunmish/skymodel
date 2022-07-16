@@ -165,7 +165,7 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
 
     if nlobes > 1:
         t, delays, freq, pnt = parse_metafits(metafits)
-        beam_image = make_beam_image(t, delays, freq*1e6,
+        beam_image = make_beam_image(t, delays, freq,
             ra=pnt.ra.value,
             return_hdu=True)
     else:
