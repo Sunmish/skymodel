@@ -16,6 +16,7 @@ def main():
     ps.add_argument("-t", "--threshold", dest="threshold", default=2., type=float)
     ps.add_argument("-o", "--outname", dest="outname", default="all_models.txt")
     ps.add_argument("-p", "--prefix", dest="prefix", default="model")
+    ps.add_argument("-P", "--export_prefix", default=None)
     ps.add_argument("-x", "--exclude", dest="exclude", default=None, nargs="*")
     ps.add_argument("-C", "--curved", dest="curved", action="store_true",
                     help="Switch on if wanting to use a curved power law model "
@@ -43,7 +44,8 @@ def main():
                exclude=args.exclude,
                curved=args.curved,
                radius=args.radius,
-               nlobes=args.nlobes)
+               nlobes=args.nlobes,
+               export_prefix=args.export_prefix)
 
 if __name__ == "__main__":
     main()

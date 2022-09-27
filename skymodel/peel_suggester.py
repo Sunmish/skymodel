@@ -11,7 +11,6 @@ logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
 from skymodel.get_beam import atten_source
 from skymodel.parsers import parse_ao, parse_metafits
 
-
 def slice_ao(source, aofile, method="peel"):
     """Slice source out of aofile.
 

@@ -10,6 +10,7 @@ from astropy import units as u
 
 from skymodel.parsers import parse_ao, parse_metafits
 from skymodel.get_beam import atten_source, beam_value, make_beam_image, find_lobes
+from skymodel.peel_suggester import slice_ao
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s")
@@ -128,7 +129,7 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
 
 def prep_model(inp, metafits, threshold, outname="./all_models.txt",
                prefix="model", exclude=None, curved=True, radius=360.,
-               nlobes=1):
+               nlobes=1, export_prefix=None):
     """Prepare a combined AO-style model, using models in a directory.
 
     Parameters
@@ -174,7 +175,11 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
     for spec in files:
 
         if exclude is not None:
-            if np.asarray([x in spec for x in exclude]).any():
+            # if np.asarray([x in spec for x in exclude]).any():
+                # continue
+            if spec in exclude:
+                continue
+            if np.array([os.path.basename(spec).replace(prefix, "") in os.path.basename(ex) for ex in exclude]).any():
                 continue
 
         tflux = total_flux(spec, 
@@ -187,24 +192,40 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
         
         if tflux > threshold:
 
+            if export_prefix is not None:
+                single_model_file = open(os.path.basename(spec).replace(prefix, export_prefix), "w+")
+        
             with open(spec, "r+") as f:
                 lines = f.readlines()
                 for line in lines:
                     if "skymodel" in line:
-                        pass
+                        continue
                     elif "source" in line:
-                        all_models.write("\n"+line.lstrip())
+                        # all_models.write("\n"+line.lstrip())
+                        line_to_write = "\n"+line.lstrip()
+
                     elif "fluxdensity" in line:
-                        all_models.write("fluxdensity Jy {} 0 0 0\n".format(
-                            line.split()[2]))
+                        # all_models.write("fluxdensity Jy {} 0 0 0\n".format(
+                            # line.split()[2]))
+                        line_to_write = "fluxdensity Jy {} 0 0 0\n".format(
+                            line.split()[2]
+                        )
                     else:
-                        all_models.write(line.lstrip())
+                        # all_models.write(line.lstrip())
+                        line_to_write = line.lstrip()
+                    
+                    all_models.write(line_to_write)
+                    if export_prefix is not None:
+                        single_model_file.write(line_to_write)
+
 
             # files_to_use += "{}\n".format(spec)
 
         total_fluxes += "{}: {}\n".format(spec, tflux)
 
         # print("{}: {}".format(spec, tflux))
+
+        
 
     print(total_fluxes)
     all_models.flush()

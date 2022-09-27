@@ -207,16 +207,17 @@ def bpp(major, minor, cd1, cd2):
     return np.pi*(major*minor) / (abs(cd1*cd2) * 4.*np.log(2.))
 
 
-def create_model_on_template(template, gaussians=None, points=None):
+def create_model_on_template(template, gaussians=None, points=None, outname=None):
     """Create model image on a template image.
     """
 
     hdu = fits.open(template)[0]
     hdu.data = np.full_like(hdu.data, 0.)
+    pixsize = hdu.header["CDELT2"]
 
     w = WCS(hdu.header).celestial
 
-    if points is not None:
+    if points is not None and points:
     
         for point in points:
             # (ra, dec, A)
@@ -225,7 +226,7 @@ def create_model_on_template(template, gaussians=None, points=None):
             x0, y0 = w.all_world2pix(r, d, 0)
             hdu.data[..., int(y0), int(x0)] += A
 
-    if gaussians is not None:
+    if gaussians is not None and gaussians:
 
         x, y = np.indices((hdu.data.shape[-2], hdu.data.shape[-1]))
         x, y = x.flatten(), y.flatten()
@@ -247,7 +248,9 @@ def create_model_on_template(template, gaussians=None, points=None):
             theta = np.radians(pa + 90.)
             hdu.data[..., y, x] += gauss2d(x, y, A, theta, sigma_x, sigma_y, x0, y0)
 
-    fits.writeto(template, hdu.data, hdu.header, overwrite=True)
+    if outname is None:
+        outname = template
+    fits.writeto(outname, hdu.data, hdu.header, overwrite=True)
 
 
 
@@ -310,7 +313,7 @@ def create_model(ra, dec, imsize, pixsize, outname, crpix, gaussians=None, point
 
 
 def convolve_model(model_image, major, minor=None, pa=0., rms=None, 
-                   outname=None):
+                   outname=None, no_bpp=False):
     """Convolve a model image with a beam.
 
     Input is Jy/pixel and output is Jy/beam.
@@ -342,7 +345,8 @@ def convolve_model(model_image, major, minor=None, pa=0., rms=None,
 
     b = bpp(major/3600., minor/3600., cd, cd)
 
-    conv *= b
+    if not no_bpp:
+        conv *= b
 
     model[0].header["BUNIT"] = "JY/BEAM"
     model[0].header["BMAJ"] = major/3600.

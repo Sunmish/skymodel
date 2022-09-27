@@ -12,7 +12,10 @@ from skymodel import get_beam
 
 
 FOV = {169: 11.,
-       121: 18.}
+       121: 18.,
+       93: 25.,
+       145: 13.,
+       69: 30.,}
 
 
 COLORS = ["red", "dodgerblue", "magenta", "orange", "yellow", "green", "mediumpuple"]
@@ -31,6 +34,7 @@ def main():
     ps.add_argument("--max_obsid", type=int, default=2e10)
     ps.add_argument("--min_obsid", type=int, default=0)
     ps.add_argument("-c", "--color", default="green", type=str)
+    ps.add_argument("-d", "--dash", action="store_true")
 
     args = ps.parse_args()
 
@@ -45,11 +49,12 @@ def main():
 
     for i, obsid in enumerate(obsids):
 
-        print obsid
+        print(obsid)
         if args.min_obsid <= int(obsid) <= args.max_obsid: 
 
             if not os.path.exists("{}.metafits".format(obsid)):
-                Popen("make_metafits.py -g {}".format(obsid), shell=True).wait()
+                make_metafits = "wget http://ws.mwatelescope.org/metadata/fits/?obs_id={0} -O {0}.metafits".format(obsid)
+                Popen(make_metafits, shell=True).wait()
             t, delays, freq, pnt = parse_metafits(obsid+".metafits")
 
             hdr = fits.getheader(obsid+".metafits")
@@ -65,12 +70,17 @@ def main():
             fovs.append(fov*2.)
             colors.append(args.color)
 
+    if args.dash:
+        dash = "dash=1"
+    else:
+        dash = ""
+
     with open(args.outname, "w+") as f:
 
         for i in range(len(ra)):
 
-            f.write("fk5;circle({} {} {}) # color={}\n".format(ra[i], dec[i], fovs[i]/2.0,
-                colors[i]))
+            f.write("fk5;circle({} {} {}) # color={} {}\n".format(ra[i], dec[i], fovs[i]/2.0,
+                colors[i], dash))
 
 
 
