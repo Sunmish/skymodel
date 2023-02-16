@@ -20,7 +20,7 @@ To clone and install the repository to a standard location, try the following:
 ```
 git clone https://github.com/Sunmish/skymodel.git
 cd skymodel
-python setup.py install
+pip install .
 ```
 
 ## References
