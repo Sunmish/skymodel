@@ -97,6 +97,15 @@ class Source(object):
         self.ncomponents = len(self.components)
 
 
+    def estimate_centroid(self):
+        pass
+
+    def estimate_size(self, bmaj=0.):
+        """Estimate size of the source by considering max sep. between components."""
+
+
+        pass
+
     def at_freq(self, freq, components=0, curved=True, alpha=-0.7, 
                 nearest_freq=8.):
         """Calculate the flux density of the source at a given frequency.

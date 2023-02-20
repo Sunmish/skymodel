@@ -56,17 +56,48 @@ def powerlaw(x, a, b):
     """Simple powerlaw function."""
     return a*(x**b)
 
+def powerlaw_from_ref(x, x0, y0, b):
+    """Simple powerlaw from reference measurement."""
+    return y0*(x/x0)**b
+
+def powerlaw_from_ref_err(x, x0, y0, b):
+    """Error on simple powerlaw from reference."""
+    return powerlaw_from_ref(x, x0, y0[0], b[0]) * np.sqrt(abs(y0[1]/y0[0])**2 + 
+        (np.log(x/x0)*b[1])**2)
+
 def cpowerlaw(x, a, b, c):
     """Simple curved powerlaw function."""
     return a*(x**b)*np.exp(c*np.log(x)**2)
+
+def cpowerlaw_err(x, a, b, c):
+    """Assume not error on a?"""
+    return cpowerlaw(x, a, b[0], c[0])*np.log(x)**2 * np.sqrt(
+        abs(np.log(x) * c[1])**2 + \
+        abs(b[1]**2))
+    
 
 def cpowerlaw_from_ref(x, x0, y0, b, c):
     """Simple curved powerlaw function from reference value."""
     return y0*((x**b)/(x0**b)) * (np.exp(c*np.log(x)**2) / np.exp(c*np.log(x0)**2))
 
+
+def cpowerlaw_from_ref_err(x, x0, y0, b, c):
+    """
+    """
+    y = cpowerlaw_from_ref(x, x0, y0[0], b[0], c[0])
+    t1 = y0[1]/y0[0]
+    t2 = np.log(x/x0)*b[1]
+    t3 = (np.log(x)**2 - np.log(x0)**2)*c[1]
+
+    return y*np.sqrt(t1**2 + t2**2 + t3**2)
+
+
 def cpowerlaw_amplitude(x0, y0, b, c):
     """Return amplitude of curved powerlaw model."""
     return y0 / (x0**b * np.exp(c*np.log(x0)**2))
+
+
+
 
 
 def plot(outname, f, x, y, yerr, popt=None):

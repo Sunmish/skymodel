@@ -86,7 +86,7 @@ def main():
 		model_image.create_model(ra=args.crval[0],
 			dec=args.crval[1],
 			imsize=args.naxis,
-			pixsize=arga.crval,
+			pixsize=args.crval,
 			crpix=args.crpix,
 			gaussians=gaussians,
 			points=points,

@@ -32,6 +32,8 @@ def fit(model, freq, flux, eflux, p0=None):
                            absolute_sigma=True,
                            method="lm")
 
+    print(popt)
+
     return popt, pcov
 
 
@@ -52,9 +54,9 @@ def main():
 
     ps = ArgumentParser()
     ps.add_argument("name", help="Source name.", type=str)
-    ps.add_argument("datafile", help="Text file with frequency, flux, flux error values.", type=str)
-    ps.add_argument("ra", help="RA [deg.]", type=float)
-    ps.add_argument("dec", help="Dec. [deg.]", type=float)
+    ps.add_argument("-r", "--ra", help="RA [deg.]", type=float)
+    ps.add_argument("-d", "--dec",help="Dec. [deg.]", type=float)
+    ps.add_argument("-D", "--datafile", help="Text file with frequency, flux, flux error values.", type=str)
     ps.add_argument("-C", "--curved", action="store_true", help="Switch to allow curved powerlaw models.")
     ps.add_argument("-f", "--frequency-range", "--frequency_range", 
                     dest="frequency_range", help="Frequency range.",
@@ -67,12 +69,14 @@ def main():
 
     args = ps.parse_args()
 
-    data = np.genfromtxt(args.datafile, names="freq,flux,eflux")
-
     if args.curved:
         model = models.cpowerlaw
     else:
         model = models.powerlaw
+
+    data = np.genfromtxt(args.datafile, names="freq,flux,eflux")
+
+    
 
     params, pcov = fit(model, data["freq"]/1.e6, data["flux"], data["eflux"])
     model_freq = np.linspace(args.frequency_range[0], args.frequency_range[1], int(args.nval))
@@ -101,8 +105,7 @@ def main():
                      popt=params,
                      x=data["freq"]/1.e6,
                      y=data["flux"],
-                     yerr=data["eflux"],
-                     pcov=pcov)
+                     yerr=data["eflux"])
 
 
 if __name__ == "__main__":

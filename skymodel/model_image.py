@@ -14,7 +14,7 @@ from astropy.convolution.kernels import _round_up_to_odd_integer
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.DEBUG)
+                    level=logging.INFO)
 
 SIGMA_TO_FWHM = np.sqrt(8.*np.log(2.))
 MAXSIZE=512
@@ -108,6 +108,15 @@ def gauss2d(x, y, A, theta, sigma_x, sigma_y, x0, y0):
                       gamma*(y-y0)**2))
 
 
+def get_last2d(array):
+    """https://stackoverflow.com/a/27111239"""
+    if array.ndim <= 2:
+        return array
+    else:
+        slc = [0] * (array.ndim - 2)
+        slc += [slice(None), slice(None)]
+        return array[tuple(slc)]
+
 # def gauss2d(x, y, A, beta, sigma_x, sigma_y, x0, y0):
 #     """2D Gaussian."""
 
@@ -136,26 +145,28 @@ def pa_to_beta(pa, sigma_x, sigma_y):
 #     return conv
 
 
-def convol(arr, sigma_x, sigma_y=None, pa=0.):
+def convol(arr, sigma_x, sigma_y=None, pa=0., maxsize=None):
     """Conlve and array with a 2D Gaussian kernel."""
 
     if sigma_y is None:
         sigma_y = sigma_x
+    if maxsize is None:
+        maxsize = MAXSIZE
 
     theta = np.radians(pa + 90.)
 
     # kern = Gaussian2DKernel(sigma_x)
 
-    kern = EllipticalGaussian2DKernel(sigma_x, sigma_y, pa)
+    kern = EllipticalGaussian2DKernel(sigma_x, sigma_y, theta)
 
-    if arr.shape[-2] > MAXSIZE or arr.shape[-1] > MAXSIZE:
+    if arr.shape[-2] > maxsize or arr.shape[-1] > maxsize:
         # Convolve array in chunks:
         
         # Determine number of subarrays:
-        nx = arr.shape[-2] // MAXSIZE
-        ny = arr.shape[-1] // MAXSIZE
-        rx = arr.shape[-2] % MAXSIZE
-        ry = arr.shape[-1] % MAXSIZE
+        nx = arr.shape[-2] // maxsize
+        ny = arr.shape[-1] // maxsize
+        rx = arr.shape[-2] % maxsize
+        ry = arr.shape[-1] % maxsize
         if rx > 0:
             nx += 1
         if ry > 0:
@@ -166,22 +177,27 @@ def convol(arr, sigma_x, sigma_y=None, pa=0.):
         garr_indices = np.indices(garr.shape)
 
         n = 0
-        x_range = range(BORDER, garr.shape[-2], MAXSIZE)
-        y_range = range(BORDER, garr.shape[-1], MAXSIZE)
+        x_range = range(BORDER, garr.shape[-2], maxsize)
+        y_range = range(BORDER, garr.shape[-1], maxsize)
         sys.stdout.write(u"\u001b[1000D" + "{:.>6.1f}%".format(100.*n/(len(x_range)*len(y_range))))
         sys.stdout.flush()
 
         for i in x_range:
             for j in y_range:
 
-                sub_arr = garr[i:i+MAXSIZE, j:j+MAXSIZE]
-                subx = garr_indices[0][i:i+MAXSIZE, j:j+MAXSIZE]
-                suby = garr_indices[1][i:i+MAXSIZE, j:j+MAXSIZE]
+                sub_arr = garr[i:i+maxsize, j:j+maxsize]
+                subx = garr_indices[0][i:i+maxsize, j:j+maxsize]
+                suby = garr_indices[1][i:i+maxsize, j:j+maxsize]
 
-                sub_garr =   garr[i-BORDER:i+MAXSIZE+BORDER, j-BORDER:j+MAXSIZE+BORDER]
+                sub_garr =   garr[i-BORDER:i+maxsize+BORDER, j-BORDER:j+maxsize+BORDER]
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    conv = convolve_fft(sub_garr, kern, allow_huge=True, boundary="fill", fill_value=0., normalize_kernel=False)
+                    conv = convolve_fft(sub_garr, kern, 
+                        allow_huge=True, 
+                        boundary="fill", 
+                        fill_value=0., 
+                        normalize_kernel=False
+                    )
                 conv = conv[BORDER:sub_arr.shape[-2]+BORDER, BORDER:sub_arr.shape[-1]+BORDER]
                 conv_arr[subx, suby]  = conv
 
@@ -196,7 +212,11 @@ def convol(arr, sigma_x, sigma_y=None, pa=0.):
 
 
     else:
-        conv_arr = convolve_fft(arr, kern, allow_huge=True)
+        conv_arr = convolve_fft(arr, kern, 
+            preserve_nan=True,
+            fill_value=0,
+            allow_huge=True
+        )
 
     return conv_arr
 
@@ -207,12 +227,18 @@ def bpp(major, minor, cd1, cd2):
     return np.pi*(major*minor) / (abs(cd1*cd2) * 4.*np.log(2.))
 
 
-def create_model_on_template(template, gaussians=None, points=None, outname=None):
+def create_model_on_template(template, 
+    gaussians=None, 
+    points=None, 
+    outname=None,
+    gauss_cutoff=20):
     """Create model image on a template image.
+
+
     """
 
     hdu = fits.open(template)[0]
-    hdu.data = np.full_like(hdu.data, 0.)
+    hdu.data = np.full_like(get_last2d(hdu.data), 0.)
     pixsize = hdu.header["CDELT2"]
 
     w = WCS(hdu.header).celestial
@@ -224,29 +250,53 @@ def create_model_on_template(template, gaussians=None, points=None, outname=None
             r, d, A = point
             logging.debug("point at {} {}, {} Jy".format(r, d, A))
             x0, y0 = w.all_world2pix(r, d, 0)
-            hdu.data[..., int(y0), int(x0)] += A
+            hdu.data[int(y0), int(x0)] += A
 
     if gaussians is not None and gaussians:
 
-        x, y = np.indices((hdu.data.shape[-2], hdu.data.shape[-1]))
-        x, y = x.flatten(), y.flatten()
+        x, y = np.indices(hdu.data.shape)
 
         for gaussian in gaussians:
             # (ra, dec, major, minor, pa, I)
             r, d, major, minor, pa, I = gaussian
-            print("gauss at {} {}, major={}; minor={}; I={}; pa={}".format(r, d, major, minor, I, pa))
-            x0, y0 = w.all_world2pix(r, d, 0)
+            # print("gauss at {} {}, major={}; minor={}; I={}; pa={}".format(r, d, major, minor, I, pa))
+            y0, x0 = w.all_world2pix(r, d, 0)
+
 
             sigma_x = fwhm_to_sigma(major/pixsize)
             sigma_y = fwhm_to_sigma(minor/pixsize)
 
+            idx = int((sigma_x*gauss_cutoff)//2)
+            idy = int((sigma_y*gauss_cutoff)//2)
+            id = np.max([idx, idy])
+
             A = I / (2.*np.pi*sigma_x*sigma_y)
 
             logging.debug("A={}".format(A))
+            theta = np.radians(pa+90.)
+
+            if int(y0)-id < 0:
+                ymin = 0
+            else:
+                ymin = int(y0)-id
+            if int(y0)+id >= x.shape[1]:
+                ymax = x.shape[1]-1
+            else:
+                ymax = int(y0)+id
+            if int(x0)-id < 0:
+                xmin = 0
+            else:
+                xmin = int(x0)-id
+            if int(x0)+id >= x.shape[0]:
+                xmax = x.shape[0]-1
+            else:
+                xmax = int(x0)+id
             
-            # beta = pa_to_beta(pa, sigma_x, sigma_y)
-            theta = np.radians(pa + 90.)
-            hdu.data[..., y, x] += gauss2d(x, y, A, theta, sigma_x, sigma_y, x0, y0)
+            xf = x[xmin:xmax, ymin:ymax].flatten()
+            yf = y[xmin:xmax, ymin:ymax].flatten()
+            shape1 = y[xmin:xmax, ymin:ymax].shape
+            hdu.data[xmin:xmax, ymin:ymax] += gauss2d(xf, yf, A, theta, sigma_x, sigma_y, x0, y0).reshape(shape1)
+
 
     if outname is None:
         outname = template
@@ -313,7 +363,8 @@ def create_model(ra, dec, imsize, pixsize, outname, crpix, gaussians=None, point
 
 
 def convolve_model(model_image, major, minor=None, pa=0., rms=None, 
-                   outname=None, no_bpp=False):
+                   outname=None, no_bpp=False, maxsize=None,
+                   return_hdu=False):
     """Convolve a model image with a beam.
 
     Input is Jy/pixel and output is Jy/beam.
@@ -325,8 +376,12 @@ def convolve_model(model_image, major, minor=None, pa=0., rms=None,
         outname = model_image.replace(".fits", "_image.fits")
 
     model = fits.open(model_image)
+    
 
-    cd = abs(model[0].header["CDELT1"])
+    try:
+        cd = abs(model[0].header["CDELT1"])
+    except KeyError:
+        cd = abs(model[0].header["CD1_1"])
     # minor = major  # TODO
     sigma_x = fwhm_to_sigma(major/3600./cd)
     sigma_y = fwhm_to_sigma(minor/3600./cd)
@@ -341,7 +396,7 @@ def convolve_model(model_image, major, minor=None, pa=0., rms=None,
                                      size=model[0].data.shape)
         model[0].data += rms_array        
 
-    conv = convol(np.squeeze(model[0].data), sigma_x, sigma_y, pa)
+    conv = convol(np.squeeze(model[0].data), sigma_x, sigma_y, pa, maxsize)
 
     b = bpp(major/3600., minor/3600., cd, cd)
 
@@ -351,9 +406,10 @@ def convolve_model(model_image, major, minor=None, pa=0., rms=None,
     model[0].header["BUNIT"] = "JY/BEAM"
     model[0].header["BMAJ"] = major/3600.
     model[0].header["BMIN"] = minor/3600.
-    model[0].header["BPA"] = 0.
+    model[0].header["BPA"] = pa
 
     fits.writeto(outname, conv, model[0].header, overwrite=True)
+
 
 
 
