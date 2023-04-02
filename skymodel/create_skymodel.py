@@ -9,7 +9,7 @@ import numpy as np
 
 from astropy import wcs
 from astropy.io import fits
-from astropy.table import Table, vstack, Column
+from astropy.table import Table, vstack, Column, unique
 from astropy.coordinates import SkyCoord, EarthLocation, AltAz
 from astropy import units as u
 from astropy.time import Time
@@ -235,9 +235,12 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
         seps = centres[i].separation(coords).value
         lobe_catalogue = catalogue[seps < radius]
         beam_lobes.append(lobe_catalogue)
-        logging.info("Sources in lobe {}: {}".format(i, len(lobe_catalogue)))
+        logging.info("Sources in lobe {} ({:.1f}, {:.1f}): {}".format(
+            i, centres[i].ra.value, centres[i].dec.value, len(lobe_catalogue)
+            )
+        )
     
-    catalogue = vstack(beam_lobes)
+    catalogue = unique(vstack(beam_lobes), keys=[ra_key, dec_key])
     logging.info("Sources after radial cut(s): {}".format(len(catalogue)))
 
     coords = SkyCoord(ra=catalogue[ra_key], dec=catalogue[dec_key], 
@@ -257,9 +260,6 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
 
     stokesI = beam_value(catalogue[ra_key], catalogue[dec_key], t, delays, 
                          freq*1.e6, return_I=True)
-
-    # if alpha is None:
-    #     alpha = np.nanmean(catalogue["beta_p"])
 
     models = np.full((len(catalogue),), -1)
     for i in range(len(catalogue)):
