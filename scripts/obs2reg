@@ -11,7 +11,8 @@ from skymodel.parsers import parse_obslist, parse_metafits
 from skymodel import get_beam
 
 
-FOV = {169: 11.,
+FOV = {235: 8.,
+       169: 11.,
        121: 18.,
        93: 25.,
        145: 13.,
