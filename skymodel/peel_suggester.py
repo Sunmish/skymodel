@@ -69,7 +69,7 @@ def slice_ao(source, aofile, method="peel"):
 
 def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0., 
                 subtract_threshold=10., subtract_radius=0.,alpha=-0.7, 
-                verbose=False, duplicates=True):
+                verbose=False, duplicates=True, pnt=None):
     """Attenuate models in an `aofile`.
 
     Additionally, write out individual models, if attenuated brightness is
@@ -98,7 +98,11 @@ def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0.,
 
     """
 
-    t, delays, freq, pnt = parse_metafits(metafits)
+    t, delays, freq, pnt_ = parse_metafits(metafits)
+    if pnt is None:
+        pnt = pnt_
+    else:
+        pnt = SkyCoord(ra=pnt[0]*u.deg, dec=pnt[1]*u.deg)
 
     writeout = ""
 

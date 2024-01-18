@@ -36,6 +36,8 @@ def main():
                     help="Find peak of lobes rather than centroids. [Default False]")
     ps.add_argument("--nlobes", action="store_true", 
                     help="Print out number of lobes above specified percent level.")
+    ps.add_argument("--pnt", nargs=2, type=float, default=None,
+                    help="Find lobe closest to these coordinates.")
 
     args = ps.parse_args()
 
@@ -52,6 +54,7 @@ def main():
     else:
 
         hdu = fits.open(args.image)[0]
+        pnt = SkyCoord(ra=args.pnt[0]*u.deg, dec=args.pnt[1]*u.deg)
 
     lobe_table = get_beam.find_lobes(hdu, 
         perc=args.perc,
@@ -61,8 +64,8 @@ def main():
         dec=lobe_table["dec"],
         unit=(u.deg, u.deg))
     main_lobe = None
-    if args.metafits:
-        # mainlobe is one closest to pointing centre
+    if args.metafits or args.pnt is not None:
+        # mainlobe is one closest to pointing centre/specified centre
         lobe_seps = pnt.separation(lobe_coords).value
         main_lobe = np.argmin(lobe_seps)
     else:

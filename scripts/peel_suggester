@@ -36,6 +36,8 @@ def main():
                     help=help_["alpha"], default=-0.7, type=float)
     ps.add_argument("-v", "--verbose", action="store_true")
     ps.add_argument("-D", "--duplicates", action="store_true")
+    ps.add_argument("--pnt", nargs=2, type=float, default=None,
+                    help="Force a pointing centre instead of using metafits file values.")
 
 
     args = ps.parse_args()
@@ -52,7 +54,8 @@ def main():
                                subtract_radius=args.subtract_radius, 
                                alpha=args.alpha,
                                verbose=args.verbose,
-                               duplicates=args.duplicates)
+                               duplicates=args.duplicates,
+                               pnt=args.pnt)
 
     if peel_sources is not None:
         for i in range(len(peel_sources)):
