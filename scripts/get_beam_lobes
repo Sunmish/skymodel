@@ -46,7 +46,12 @@ def main():
 
     if args.metafits:
 
-        t, delays, freq, pnt = parsers.parse_metafits(args.image)
+        
+        t, delays, freq, pnt_ = parsers.parse_metafits(args.image)
+        if args.pnt is None:
+            pnt = pnt_
+        else:
+             pnt = SkyCoord(ra=args.pnt[0]*u.deg, dec=args.pnt[1]*u.deg)
         hdu = get_beam.make_beam_image(t, delays, freq, 
                                        ra=pnt.ra.value,
                                        return_hdu=True)
