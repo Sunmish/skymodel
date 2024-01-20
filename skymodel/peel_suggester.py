@@ -4,12 +4,16 @@ from __future__ import print_function
 
 import numpy as np
 
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
                     level=logging.INFO)
 
 from skymodel.get_beam import atten_source
 from skymodel.parsers import parse_ao, parse_metafits
+
 
 def slice_ao(source, aofile, method="peel"):
     """Slice source out of aofile.
