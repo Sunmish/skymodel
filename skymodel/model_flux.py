@@ -129,7 +129,7 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
 
 def prep_model(inp, metafits, threshold, outname="./all_models.txt",
                prefix="model", exclude=None, curved=True, radius=360.,
-               nlobes=1, export_prefix=None):
+               nlobes=1, export_prefix=None, pnt=None):
     """Prepare a combined AO-style model, using models in a directory.
 
     Parameters
@@ -165,7 +165,11 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
     total_fluxes = ""
 
     if nlobes > 1:
-        t, delays, freq, pnt = parse_metafits(metafits)
+        t, delays, freq, pnt_ = parse_metafits(metafits)
+        if pnt is None:
+            pnt = pnt_
+        else:
+            pnt = SkyCoord(ra=pnt[0]*u.deg, dec=pnt[1]*u.deg)
         beam_image = make_beam_image(t, delays, freq,
             ra=pnt.ra.value,
             return_hdu=True)
@@ -188,7 +192,8 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
                            curved=curved, 
                            radius=radius,
                            nlobes=nlobes,
-                           beam_image=beam_image)
+                           beam_image=beam_image,
+                           coords=pnt)
         
         if tflux > threshold:
 

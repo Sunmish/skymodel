@@ -24,6 +24,7 @@ def main():
     ps.add_argument("-r", "--radius", dest="radius", default=360., type=float,
                     help="Radius within which to include sources. [Default 360 deg]")
     ps.add_argument("--nlobes", default=1, type=int)
+    ps.add_argument("--pnt", default=None, nargs=2, type=float)
 
     args = ps.parse_args()
 
@@ -45,7 +46,8 @@ def main():
                curved=args.curved,
                radius=args.radius,
                nlobes=args.nlobes,
-               export_prefix=args.export_prefix)
+               export_prefix=args.export_prefix,
+               pnt=args.pnt)
 
 if __name__ == "__main__":
     main()
