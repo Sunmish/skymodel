@@ -175,6 +175,8 @@ def prep_model(inp, metafits, threshold, outname="./all_models.txt",
             return_hdu=True)
     else:
         beam_image = None
+        if pnt is not None:
+            pnt = SkyCoord(ra=pnt[0]*u.deg, dec=pnt[1]*u.deg)
 
     for spec in files:
 
