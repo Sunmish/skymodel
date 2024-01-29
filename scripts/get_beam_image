@@ -21,6 +21,7 @@ def main():
     ps.add_argument("-c", "--cmap", help="Colormap to use when plotting.")
     ps.add_argument("-i", "--image", default=None)
     ps.add_argument("-f", "--frequency", dest="freq", default=None, type=float)
+    ps.add_argument("-t", "--trim", action="store", help="Trim empty space around beam image.")
 
     args = ps.parse_args()
 
@@ -36,7 +37,8 @@ def main():
                              outname=args.outname,
                              cmap=args.cmap, 
                              plot=args.plot,
-                             reference_image=args.image)
+                             reference_image=args.image,
+                             trim_beam_image=args.trim)
 
     
 

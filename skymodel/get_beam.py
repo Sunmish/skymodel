@@ -24,6 +24,18 @@ MWA = EarthLocation.from_geodetic(lat=-26.703319*u.deg,
                                   height=377*u.m)
 
 
+def minimal_bounding_box(image_data : np.ndarray):
+    """
+    Obtain minimal bounding box for an image.
+    Based on https://stackoverflow.com/a/31402351
+
+    """
+
+    arr = np.where(np.isfinite(image_data))
+    bbox = np.min(arr[0]), np.max(arr[0]), np.min(arr[1]), np.max(arr[1])
+    return bbox
+
+
 def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False):
     """Get real XX and real YY beam value at given RA and Dec.
 
@@ -126,7 +138,8 @@ def atten_source(source, t, delays, freq, alpha=-0.7):
 
 def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", stretch="sqrt", 
                     npix=1500, dec=None, plot=False, return_hdu=False,
-                    reference_image=None):
+                    reference_image=None,
+                    trim_beam_image=False):
     """Make a FITS image of the psuedo-I beam response.
 
     Parameters
@@ -203,6 +216,13 @@ def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", st
     for i in range(0, len(x), stride):
         r, d = w.all_pix2world(x[i:i+stride], y[i:i+stride], 0)   
         arr[y[i:i+stride], x[i:i+stride]] = beam_value(r, d, t, delays, freq, return_I=True)
+    if trim_beam_image:
+        bbox = minimal_bounding_box(arr)
+        arr = arr[bbox[0]:bbox[1], bbox[2]:bbox[3]]
+        xdiff = hdu.header["CRPIX1"] - bbox[2]
+        ydiff = hdu.header["CRPIX2"] - bbox[0]
+        hdu.header["CRPIX1"] = xdiff
+        hdu.header["CRPIX2"] = ydiff
 
     if plot:
         print("Plotting not yet implemented.")  
