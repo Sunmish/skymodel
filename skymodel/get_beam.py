@@ -136,6 +136,19 @@ def atten_source(source, t, delays, freq, alpha=-0.7):
 
 
 
+def strip_wcsaxes(header : fits.Header):
+    """Strips non-celestial axes."""
+
+    remove_keys = [key+i for key in ["CRVAL", "CDELT", "CRPIX", "CTYPE", "CUNIT", "NAXIS"]
+                         for i in ["3", "4", "5"]]
+
+    for key in remove_keys:
+        if key in header.keys():
+            del header[key]
+
+    return header
+
+
 def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", stretch="sqrt", 
                     npix=1500, dec=None, plot=False, return_hdu=False,
                     reference_image=None,
@@ -200,9 +213,10 @@ def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", st
         y = indices[1].flatten()
 
     else:
+        
         ref = fits.open(reference_image)
         ref_arr = np.squeeze(ref[0].data)
-        hdr = ref[0].header
+        hdr = strip_wcsaxes(ref[0].header)
         arr = np.full_like(ref_arr, 0.)
 
         indices = np.where(~np.isnan(ref_arr))
