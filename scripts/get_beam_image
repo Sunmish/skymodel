@@ -22,6 +22,7 @@ def main():
     ps.add_argument("-i", "--image", default=None)
     ps.add_argument("-f", "--frequency", dest="freq", default=None, type=float)
     ps.add_argument("-t", "--trim", action="store", help="Trim empty space around beam image.")
+    ps.add_argument("--xxyy", action="store_true", help="Output real XX,YY components instead of Stokes I.")
 
     args = ps.parse_args()
 
@@ -33,12 +34,18 @@ def main():
     if args.freq is not None:
         freq = args.freq
 
+    if not args.xxyy:
+        stokes = "i"
+    else:
+        stokes = "xxyy"
+
     get_beam.make_beam_image(t, delays, freq,
                              outname=args.outname,
                              cmap=args.cmap, 
                              plot=args.plot,
                              reference_image=args.image,
-                             trim_beam_image=args.trim)
+                             trim_beam_image=args.trim,
+                             stokes=stokes)
 
     
 

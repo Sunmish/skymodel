@@ -99,7 +99,6 @@ def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False):
                               pixels_per_deg=10)
 
     if return_I:
-
         return 0.5*(rX[0] + rY[0])
     else:
         return rX[0], rY[0]
@@ -152,7 +151,8 @@ def strip_wcsaxes(header : fits.Header):
 def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", stretch="sqrt", 
                     npix=1500, dec=None, plot=False, return_hdu=False,
                     reference_image=None,
-                    trim_beam_image=False):
+                    trim_beam_image=False,
+                    stokes="i"):
     """Make a FITS image of the psuedo-I beam response.
 
     Parameters
@@ -225,14 +225,26 @@ def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", st
 
     w = WCS(hdr).celestial
     
+    if stokes != "i":
+        arr_xx = arr.copy()
+        arr_yy = arr.copy()
+
     # Now get beam values for each pixel:    
     stride = 4000*4000  # 1500*1500
     for i in range(0, len(x), stride):
         r, d = w.all_pix2world(x[i:i+stride], y[i:i+stride], 0)   
-        arr[y[i:i+stride], x[i:i+stride]] = beam_value(r, d, t, delays, freq, return_I=True)
+        if stokes == "i":
+            arr[y[i:i+stride], x[i:i+stride]] = beam_value(r, d, t, delays, freq, return_I=True)
+        else:
+            xx, yy = beam_value(r, d, t, delays, freq, return_I=False)
+            arr_xx[y[i:i+stride], x[i:i+stride]] = xx
+            arr_yy[y[i:i+stride], x[i:i+stride]] = yy
     if trim_beam_image:
         bbox = minimal_bounding_box(arr)
         arr = arr[bbox[0]:bbox[1], bbox[2]:bbox[3]]
+        if stokes != "i":
+            arr_xx = arr_xx[bbox[0]:bbox[1], bbox[2]:bbox[3]]
+            arr_yy = arr_yy[bbox[0]:bbox[1], bbox[2]:bbox[3]]
         xdiff = hdu.header["CRPIX1"] - bbox[2]
         ydiff = hdu.header["CRPIX2"] - bbox[0]
         hdu.header["CRPIX1"] = xdiff
@@ -242,7 +254,11 @@ def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", st
         print("Plotting not yet implemented.")  
 
     if outname is not None:
-        fits.writeto(outname, arr, hdr, overwrite=True)
+        if stokes == "i":
+            fits.writeto(outname, arr, hdr, overwrite=True)
+        else:
+            fits.writeto(outname.replace(".fits", "-xx.fits"), arr_xx, hdr, overwrite=True)
+            fits.writeto(outname.replace(".fits", "-yy.fits"), arr_yy, hdr, overwrite=True)
     if return_hdu:
         return hdu
 
