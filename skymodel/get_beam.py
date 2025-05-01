@@ -257,8 +257,8 @@ def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", st
         if stokes == "i":
             fits.writeto(outname, arr, hdr, overwrite=True)
         else:
-            fits.writeto(outname.replace(".fits", "-xx.fits"), arr_xx, hdr, overwrite=True)
-            fits.writeto(outname.replace(".fits", "-yy.fits"), arr_yy, hdr, overwrite=True)
+            fits.writeto(outname.replace(".fits", "-XX.fits"), arr_xx, hdr, overwrite=True)
+            fits.writeto(outname.replace(".fits", "-YY.fits"), arr_yy, hdr, overwrite=True)
     if return_hdu:
         return hdu
 
