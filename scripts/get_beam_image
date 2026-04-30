@@ -40,6 +40,8 @@ def main():
         stokes = "xxyy"
 
     get_beam.make_beam_image(t, delays, freq,
+                             ra=pnt.ra.value,
+                             dec=pnt.dec.value,
                              outname=args.outname,
                              cmap=args.cmap, 
                              plot=args.plot,

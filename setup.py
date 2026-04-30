@@ -24,13 +24,15 @@ scripts = [
     "scripts/create_model_image",
     "scripts/create_skymodel",
     "scripts/get_beam_image",
+    "scripts/get_beam_value",
     "scripts/get_beam_lobes",
     "scripts/get_model_flux",
     "scripts/model2reg",
     "scripts/obs2reg",
     "scripts/peel_suggester",
     "scripts/prep_model",
-    "scripts/make_single_model"
+    "scripts/make_single_model",
+    "scripts/mwa_skymodel.py"
 ]
 
 

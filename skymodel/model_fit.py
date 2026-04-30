@@ -18,13 +18,14 @@ def fit(f, x, y, p0, yerr=None, return_pcov=False):
     if yerr is not None:
         yerr = np.asarray(yerr)
 
+    print(x,y,p0,yerr)
     popt, pcov = curve_fit(f, np.asarray(x), np.asarray(y), 
                            p0=p0,
                            absolute_sigma=True,
                            method="lm",
                            sigma=yerr,
                            maxfev=100000)
-
+                           
     perr = np.sqrt(np.diag(pcov))
 
     if return_pcov:

@@ -6,6 +6,7 @@ import numpy as np
 
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.stats import circmean
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
@@ -111,7 +112,7 @@ def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0.,
     writeout = ""
 
     i = 0
-    names, models, abrights, ra, dec, method = [], [], [], [], [], []
+    names, models, abrights, ra, dec, size, method = [], [], [], [], [], [], []
 
     for ao in aofile:
         sources = parse_ao(ao)
@@ -124,7 +125,31 @@ def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0.,
                                                    freq=freq,
                                                    alpha=-0.7)
 
-                sep = pnt.separation(source.components[0].radec).value
+                mean_dec = np.mean(
+                    [source.components[i].radec.dec.value for i in range(len(source.components))]
+                )
+                mean_ra = np.degrees(circmean(
+                    np.radians(np.array([
+                        source.components[i].radec.ra.value for i in range(len(source.components))
+                    ]))
+                ))
+            
+
+                source_coords = SkyCoord(
+                    ra=mean_ra*u.deg,
+                    dec=mean_dec*u.deg
+                )
+                component_coords = SkyCoord(
+                    ra=[source.components[i].radec.ra for i in range(len(source.components))],
+                    dec=[source.components[i].radec.dec for i in range(len(source.components))]
+                )
+
+                sep = pnt.separation(source_coords).value
+                if len(source.components) == 1:
+                    max_size = 10./60. # 10 arcmin 
+                else:
+                    max_size = np.max(component_coords[:, None].separation(component_coords[None, :])).value
+                
 
                 writeout += "{:<22}: {:.2f} Jy\n".format(source.name, 
                                                          apparent_brightness)
@@ -135,8 +160,9 @@ def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0.,
                     names.append(source.name)
                     models.append(model_name)
                     abrights.append(apparent_brightness)
-                    ra.append(source.components[0].radec.ra.value)
-                    dec.append(source.components[0].radec.dec.value)
+                    ra.append(source_coords.ra.value)
+                    dec.append(source_coords.dec.value)
+                    size.append(max_size)
                     method.append("peel")
                 elif (apparent_brightness > subtract_threshold) and \
                     (sep > subtract_radius):
@@ -145,8 +171,9 @@ def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0.,
                     names.append(source.name)
                     models.append(model_name)
                     abrights.append(apparent_brightness)
-                    ra.append(source.components[0].radec.ra.value)
-                    dec.append(source.components[0].radec.dec.value)
+                    ra.append(source_coords.ra.value)
+                    dec.append(source_coords.dec.value)
+                    size.append(max_size)
                     method.append("subtract")
 
             else:
@@ -164,6 +191,7 @@ def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0.,
                          np.asarray(models),
                          np.asarray(ra),
                          np.asarray(dec),
+                         np.asarray(size),
                          np.asarray(method)]).T
         peel = peel[peel[:, 0].astype("f").argsort()[::-1]]  # brightest first
     except Exception:

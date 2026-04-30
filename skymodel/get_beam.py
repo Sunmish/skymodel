@@ -17,7 +17,12 @@ from scipy.spatial import distance
 
 import logging
 
-from mwa_pb.primary_beam import MWA_Tile_full_EE
+try:
+    import mwa_hyperbeam
+    HYPERBEAM = True
+except ImportError:
+    from mwa_pb.primary_beam import MWA_Tile_full_EE
+    HYPERBEAM = False
 
 MWA = EarthLocation.from_geodetic(lat=-26.703319*u.deg, 
                                   lon=116.67081*u.deg, 
@@ -36,7 +41,11 @@ def minimal_bounding_box(image_data : np.ndarray):
     return bbox
 
 
-def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False):
+
+
+
+
+def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False, hyperbeam=False):
     """Get real XX and real YY beam value at given RA and Dec.
 
     Adapted from `beam_value_at_radec.py` by N. Hurley-Walker.
@@ -89,14 +98,32 @@ def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False):
         az = np.array([az])
 
 
-    rX, rY = MWA_Tile_full_EE(za=[za],
-                              az=[az],
-                              freq=freq,
-                              delays=delays,
-                              power=True,
-                              zenithnorm=True,
-                              interp=interp,
-                              pixels_per_deg=10)
+    if HYPERBEAM:
+
+        beam = mwa_hyperbeam.FEEBeam()
+
+        jones = beam.calc_jones(
+            az_rad=az, 
+            za_rad=za, 
+            freq_hz=freq, 
+            delays=delays, 
+            amps=[1.]*len(delays), 
+            norm_to_zenith=True, 
+            latitude_rad=MWA.lat.to(u.radians), 
+            iau_order=False
+        )
+
+
+    else:
+
+        rX, rY = MWA_Tile_full_EE(za=[za],
+                                az=[az],
+                                freq=freq,
+                                delays=delays,
+                                power=True,
+                                zenithnorm=True,
+                                interp=interp,
+                                pixels_per_deg=10)
 
     if return_I:
         return 0.5*(rX[0] + rY[0])

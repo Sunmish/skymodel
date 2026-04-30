@@ -7,6 +7,7 @@ import numpy as np
 
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.stats import circmean
 
 from skymodel.parsers import parse_ao, parse_metafits
 from skymodel.get_beam import atten_source, beam_value, make_beam_image, find_lobes
@@ -18,8 +19,17 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
-               curved=True, radius=360., coords=None, nlobes=1, beam_image=None):
+def total_flux(aocal, 
+    freq=None, 
+    alpha=-0.7, 
+    metafits=None, 
+    attenuate=False,
+    curved=True, 
+    radius=360., 
+    coords=None, 
+    nlobes=1, 
+    beam_image=None,
+    return_coords=False):
     """Get total flux from aocal file. 
 
     Assume single source, and calculate the flux at a given frequency for each
@@ -124,7 +134,10 @@ def total_flux(aocal, freq=None, alpha=-0.7, metafits=None, attenuate=False,
     else:
         tflux = np.sum(sflux)
 
-    return tflux
+    if return_coords:
+        return tflux, np.mean(ras), np.mean(decs)
+    else:
+        return tflux
 
 
 def prep_model(inp, metafits, threshold, outname="./all_models.txt",
