@@ -22,6 +22,7 @@ from skymodel.get_beam import beam_value, find_lobes, make_beam_image
 from skymodel.parsers import parse_metafits
 
 from skymodel.model_fit import cpowerlaw, cpowerlaw_amplitude, powerlaw, from_index
+from skymodel.model_image import deconv2
 
 
 FREQ_LIST = np.array([76., 84., 92., 99., 107., 115., 122., 130., 143.,
@@ -141,19 +142,87 @@ def check_keys(table, *keys):
 
 
 
-def create_all_skymodel(table, metafits, outname=None, threshold=1.,
-                        ref_threshold=0., exclude_coords=None, exclusion_zone=1.,
-                        bright_exclusion_zone=10.,
-                        d_limit=(-90, 90), radius=180., nmax=200, ref_key="S154",
-                        ignore_magellanic=False, index_limits=[-3., 2.], 
-                        curved=False, flux0=None, freq0=None, alpha0=-0.77, powerlaw_amplitude=None,
-                        powerlaw_index=None, powerlaw_curvature=None,
-                        ra_key="ra", dec_key="dec",
-                        nlobes=1,
-                        nfreqs_to_predict=10,
-                        attenuate=False):
+def get_deconvolved_axes(
+    table,
+    major_key : str = "a",
+    minor_key : str = "b",
+    pa_key : str = "pa",
+    bmaj_key : str = "bmin",
+    bmin_key : str = "bmin",
+    bpa_key : str = "bpa",
+    dc_prefix : str = "dc"
+):
+    """Add deconvolved source size.""" 
+
+    for key in [major_key, minor_key, pa_key]:
+        table[f"{dc_prefix}_{key}"] = np.full(
+            (len(table),), np.nan, dtype=float
+        )
+
+
+    idx = np.where(np.isfinite(table[f"{major_key}"]))[0]
+    for i in range(len(idx)):
+        index = idx[i]
+        gauss_bm = (
+            table[index][f"{bmaj_key}"],
+            table[index][f"{bmin_key}"],
+            table[index][f"{bpa_key}"]
+        )
+        gauss_c = (
+            # aegean default arcsec output
+            table[index][f"{major_key}"],
+            table[index][f"{minor_key}"],
+            table[index][f"{pa_key}"]
+        )
+        gauss, ifail = deconv2(
+            gaus_bm=gauss_bm,
+            gaus_c=gauss_c
+        )
+
+        table[index][f"{dc_prefix}_{major_key}"] = gauss[0]
+        table[index][f"{dc_prefix}_{minor_key}"] = gauss[1]
+        table[index][f"{dc_prefix}_{pa_key}"] = gauss[2]
+
+    return table
+
+
+def create_all_skymodel(
+    table, 
+    metafits, 
+    outname=None, 
+    threshold=1.,
+    ref_threshold=0., 
+    exclude_coords=None, 
+    exclusion_zone=1.,
+    bright_exclusion_zone=10.,
+    d_limit=(-90, 90), 
+    radius=180., 
+    nmax=200, 
+    ref_key="S154",
+    ignore_magellanic=False, 
+    flux0=None, 
+    freq0=None,
+    alpha0=-0.77, 
+    powerlaw_amplitude=None,
+    powerlaw_index=None, 
+    powerlaw_curvature=None,
+    ra_key="ra", 
+    dec_key="dec",
+    major_key="a",
+    minor_key="b",
+    pa_key="pa",
+    bmaj_key="bmaj",
+    bmin_key="bmin",
+    bpa_key="bpa",
+    minimum_source_size=10,
+    nlobes=1,
+    nfreqs_to_predict=10,
+    attenuate=False
+):
     """
+    Create skymodel from catalogue, evaluating flux at relevant frequencies. 
     """
+
 
 
     if flux0 is not None:
@@ -185,7 +254,10 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
         centres = [pnt]
 
     # catalogue = fits.open(table)[1].data
-    catalogue = Table.read(table).filled(np.nan)
+    try:
+        catalogue = Table.read(table).filled(np.nan)
+    except TypeError:
+        catalogue = Table.read(table)
 
     logging.info("Total sources: {}".format(len(catalogue)))
 
@@ -483,10 +555,32 @@ def create_all_skymodel(table, metafits, outname=None, threshold=1.,
 
             name = "J{}{}{}{}".format(r[:2], r[3:5], d[:3], d[4:6])
 
-            entry_format = point_formatter(name=name,
-                                           ra=r,
-                                           dec=d,
-                                           freq=freqs_to_predict,
-                                           flux=flux)
+            entry_format = None
+            if (major_key in catalogue.columns) and \
+                (minor_key in catalogue.columns) and \
+                (pa_key in catalogue.columns):
+
+
+                if catalogue[i][major_key] > minimum_source_size:
+            
+                    entry_format = gaussian_formatter(
+                        name=name,
+                        ra=r,
+                        dec=d,
+                        major=catalogue[i][major_key],
+                        minor=catalogue[i][minor_key],
+                        pa=catalogue[i][pa_key],
+                        freq=freqs_to_predict,
+                        flux=flux
+                    )
+            
+            if entry_format is None:
+                entry_format = point_formatter(
+                    name=name,
+                    ra=r,
+                    dec=d,
+                    freq=freqs_to_predict,
+                    flux=flux
+                )
 
             o.write(entry_format)

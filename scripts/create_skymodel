@@ -95,6 +95,9 @@ def main():
                         type=float, default=None, help=help_["a"])
     parser.add_argument("--ra_key", default="ra", type=str, help=help_["ra_key"])
     parser.add_argument("--dec_key", default="dec", type=str, help=help_["dec_key"])
+    parser.add_argument("--major_key", default="a", type=str)
+    parser.add_argument("--minor_key", default="b", type=str)
+    parser.add_argument("--pa_key", default="pa", type=str)
     parser.add_argument("--nlobes", default=1, type=int)
     parser.add_argument("--nfreqs", default=10, type=int)
     options = parser.parse_args()
@@ -112,29 +115,33 @@ def main():
     else:
         exclusion_coords = None
     
-    create_all_skymodel(table=options.catalogue,
-                        metafits=options.metafits,
-                        outname=options.outname,
-                        threshold=options.threshold,
-                        ref_threshold=options.threshold,
-                        exclude_coords=exclusion_coords,
-                        exclusion_zone=options.exclusion_zone,
-                        bright_exclusion_zone=options.bright_exclusion_zone,
-                        d_limit=(-90, 45),
-                        radius=options.radius,
-                        nmax=options.nmax,
-                        index_limits=options.alpha_limits,
-                        ignore_magellanic=options.ignore_magellanic,
-                        flux0=options.flux0,
-                        freq0=options.freq0,
-                        alpha0=options.alpha0,
-                        powerlaw_amplitude=options.amplitude,
-                        powerlaw_index=options.index,
-                        powerlaw_curvature=options.curvature,
-                        ra_key=options.ra_key,
-                        dec_key=options.dec_key,
-                        nlobes=options.nlobes,
-                        nfreqs_to_predict=options.nfreqs)
+    create_all_skymodel(
+          table=options.catalogue,
+          metafits=options.metafits,
+          outname=options.outname,
+          threshold=options.threshold,
+          ref_threshold=options.threshold,
+          exclude_coords=exclusion_coords,
+          exclusion_zone=options.exclusion_zone,
+          bright_exclusion_zone=options.bright_exclusion_zone,
+          d_limit=(-90, 45),
+          radius=options.radius,
+          nmax=options.nmax,
+          ignore_magellanic=options.ignore_magellanic,
+          flux0=options.flux0,
+          freq0=options.freq0,
+          alpha0=options.alpha0,
+          powerlaw_amplitude=options.amplitude,
+          powerlaw_index=options.index,
+          powerlaw_curvature=options.curvature,
+          ra_key=options.ra_key,
+          dec_key=options.dec_key,
+          major_key=options.major_key,
+          minor_key=options.minor_key,
+          pa_key=options.pa_key,
+          nlobes=options.nlobes,
+          nfreqs_to_predict=options.nfreqs
+     )
 
 
 

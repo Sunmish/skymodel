@@ -87,8 +87,11 @@ def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False, hyperbeam=
         ra = np.asarray(ra)
         dec = np.asarray(dec)
 
-    radec = SkyCoord(ra*u.deg, dec*u.deg)
-    
+    try:
+        radec = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
+    except u.core.UnitTypeError:
+        radec = SkyCoord(ra=ra, dec=dec)
+
     altaz = radec.transform_to(AltAz(obstime=t, location=MWA))
     za = (np.pi/2.) - altaz.alt.rad
     az = altaz.az.rad
