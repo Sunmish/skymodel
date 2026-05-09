@@ -17,12 +17,12 @@ from scipy.spatial import distance
 
 import logging
 
-try:
-    import mwa_hyperbeam
-    HYPERBEAM = True
-except ImportError:
-    from mwa_pb.primary_beam import MWA_Tile_full_EE
-    HYPERBEAM = False
+# try:
+    # import mwa_hyperbeam
+    # HYPERBEAM = True
+# except ImportError:
+from mwa_pb.primary_beam import MWA_Tile_full_EE
+HYPERBEAM = False
 
 MWA = EarthLocation.from_geodetic(lat=-26.703319*u.deg, 
                                   lon=116.67081*u.deg, 
