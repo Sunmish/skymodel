@@ -89,7 +89,7 @@ def beam_value(ra, dec, t, delays, freq, interp=True, return_I=False, hyperbeam=
 
     try:
         radec = SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
-    except u.core.UnitTypeError:
+    except Exception:
         radec = SkyCoord(ra=ra, dec=dec)
 
     altaz = radec.transform_to(AltAz(obstime=t, location=MWA))
