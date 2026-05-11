@@ -214,11 +214,19 @@ def make_beam_image(t, delays, freq, ra=None, outname=None, cmap="cubehelix", st
 
         # Set RA/DEC as ALT/AZ = 90.0/180.0:
         if ra is None or dec is None:
-            altaz = AltAz(alt=90.*u.deg, 
-                          az=180.*u.deg,
-                          obstime=t,
-                          location=MWA)
-            radec_at_zenith = altaz.transform_to(FK5)
+            # altaz = AltAz(alt=90.*u.deg, 
+            #               az=180.*u.deg,
+            #               obstime=t,
+            #               location=MWA)
+            zenith = SkyCoord(
+                alt=90.*u.deg, 
+                az=180.*u.deg,
+                frame=AltAz(
+                    obstime=t,
+                    location=MWA
+                )
+            )
+            radec_at_zenith = zenith.transform_to(FK5)
             ra = radec_at_zenith.ra.value
             dec = radec_at_zenith.dec.value
 
