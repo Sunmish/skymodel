@@ -10,7 +10,7 @@ from astropy.stats import circmean
 
 import logging
 logging.basicConfig(format="%(levelname)s (%(module)s): %(message)s",
-                    level=logging.INFO)
+                    level=logging.WARN)
 
 from skymodel.get_beam import atten_source
 from skymodel.parsers import parse_ao, parse_metafits
@@ -125,6 +125,7 @@ def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0.,
                                                    freq=freq,
                                                    alpha=-0.7)
 
+                logging.debug(f"Getting avg coords for {source}")
                 mean_dec = np.mean(
                     [source.components[i].radec.dec.value for i in range(len(source.components))]
                 )
@@ -150,6 +151,7 @@ def autoprocess(aofile, metafits, peel_threshold=25., peel_radius=0.,
                 else:
                     max_size = np.max(component_coords[:, None].separation(component_coords[None, :])).value
                 
+                logging.debug(f"{source} size: {max_size}")
 
                 writeout += "{:<22}: {:.2f} Jy\n".format(source.name, 
                                                          apparent_brightness)
